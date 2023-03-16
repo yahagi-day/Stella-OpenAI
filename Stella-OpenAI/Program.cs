@@ -1,36 +1,43 @@
-﻿using System;
-using System.Text.Json;
-using System.Threading.Tasks;
-using Discord;
+﻿using Discord;
 using Discord.Commands;
+using Discord.Net;
 using Discord.WebSocket;
+using Newtonsoft.Json;
 using OpenAI_API;
 using OpenAI_API.Chat;
-using OpenAI_API.Models;
 
-class Program
+namespace Stella_OpenAI;
+
+internal class Program
 {
     private DiscordSocketClient _client;
     public static CommandService _commands;
     public static IServiceProvider _services;
+    private string _tokenDiscord;
+    private string _tokenOpenAi;
 
     public static Task Main(string[] args) => new Program().MainAsync();
 
-    public async Task MainAsync()
+    private async Task MainAsync()
     {
-        _client = new DiscordSocketClient();
+        //環境変数からTokenを設定
+        _tokenDiscord = Environment.GetEnvironmentVariable("TOKEN_DISCORD", EnvironmentVariableTarget.User);
+        _tokenOpenAi = Environment.GetEnvironmentVariable("TOKEN_OPENAI", EnvironmentVariableTarget.User);
+
+        _client = new DiscordSocketClient(new DiscordSocketConfig() { GatewayIntents = GatewayIntents.All });
         _client.Log += Log;
-
-        var token = "";
-
-        await _client.LoginAsync(TokenType.Bot, token);
+        _client.Ready += Client_Ready;
+        _client.SlashCommandExecuted += SlashCommandHandler;
+        //終了時の処理
+        AppDomain.CurrentDomain.ProcessExit += DisconnectService;
+        await _client.LoginAsync(TokenType.Bot, _tokenDiscord);
         await _client.StartAsync();
         await SetUpChatGPT();
         _client.MessageReceived += CommandRecieved;
         await Task.Delay(-1);
     }
 
-    private Task Log(LogMessage message)
+    private static Task Log(LogMessage message)
     {
         Console.WriteLine(message.ToString());
         return Task.CompletedTask;
@@ -47,28 +54,121 @@ class Program
             return;
         if (message.Channel.Id != 1085891579585249351)
             return;
-        var context = new CommandContext(_client, message);
+
         var emote = Emote.Parse("<a:working:1085848442468827146>");
         await message.AddReactionAsync(emote);
-        var responseChat =  await SendChatGptPrompt(message.Content);
+        var responseChat = await SendChatGptPrompt(message.Content);
 
         await message.Channel.SendMessageAsync(responseChat);
 
         await message.RemoveReactionAsync(emote, _client.CurrentUser);
     }
-    OpenAIAPI api = new OpenAIAPI("");
+
+    OpenAIAPI api;
     Conversation conversation;
 
     private async Task SetUpChatGPT()
     {
+        api = new OpenAIAPI(_tokenOpenAi);
         conversation = api.Chat.CreateConversation();
-        conversation.AppendSystemMessage("あなたは架空のキャラクター「ステラちゃん」です。ステラちゃんになりきって質問に回答してください。");
+        try
+        {
+            conversation.AppendSystemMessage("あなたは架空のキャラクター「ステラちゃん」です。ステラちゃんになりきって質問に回答してください。一人称は私です。おとなしめな性格です。あなたは魔法を使うことができます。相手が対価を払ったときに気まぐれで魔法を使ってあげることがあります。");
+            var response = await SendChatGptPrompt("こんにちは！");
+            var channel = _client.GetChannel(1085891579585249351) as IMessageChannel;
+            channel.SendMessageAsync(response);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"SetUpChatGPT:{e}");
+        }
+
+    }
+
+    private async Task SendChatGptSystemPrompt(SocketSlashCommand command)
+    {
+        try
+        {
+            conversation.AppendSystemMessage(command.Data.Options.First().Value.ToString());
+            command.FollowupAsync("更新しました。");
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            throw;
+        }
     }
     private async Task<string> SendChatGptPrompt(string prompt)
     {
-        conversation.AppendUserInput(prompt);
-        var response = await conversation.GetResponseFromChatbot();
+        try
+        {
+            conversation.AppendUserInput(prompt);
+            var response = await conversation.GetResponseFromChatbot();
+            return response;
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            return $"送信に失敗しました:SendChatGptPrompt:{e}";
+        }
+    }
 
-        return response;
+    private async Task Client_Ready()
+    {
+        //resetコマンド
+        var resetCommand = new SlashCommandBuilder();
+        resetCommand.WithName("reset");
+        resetCommand.WithDescription("AIを初期化します");
+
+        //SystemMessageコマンド
+        var SystemCommand = new SlashCommandBuilder();
+        SystemCommand.WithName("system");
+        SystemCommand.WithDescription("System側のpromptを出します")
+            .AddOption("prompt", ApplicationCommandOptionType.String, "ここにプロンプトを入力！", true);
+
+        try
+        {
+            await _client.CreateGlobalApplicationCommandAsync(resetCommand.Build());
+            await _client.CreateGlobalApplicationCommandAsync(SystemCommand.Build());
+        }
+        catch (ApplicationCommandException e)
+        {
+            var json = JsonConvert.SerializeObject(e.Errors, Formatting.Indented);
+            Console.WriteLine($"Client_Ready{json}");
+        }
+    }
+
+    private async Task SlashCommandHandler(SocketSlashCommand command)
+    {
+        try
+        {
+            switch (command.Data.Name)
+            {
+                case "reset":
+                    Task.Run(() => SetUpChatGPT());
+                    await command.RespondAsync($"ステラちゃんの記憶を消しました！");
+                    return;
+                case "system":
+                    await command.DeferAsync();
+                    Task.Run(() => SendChatGptSystemPrompt(command));
+                    return;
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"error:{e.Message}");
+        }
+    }
+
+    private async void DisconnectService(object sender, EventArgs e)
+    {
+        //Discord
+        await _client.StopAsync();
+        await _client.LogoutAsync();
+        _client.Log -= Log;
+        _client.MessageReceived -= CommandRecieved;
+        _client.SlashCommandExecuted -= SlashCommandHandler;
+
+        AppDomain.CurrentDomain.ProcessExit -= DisconnectService;
     }
 }
