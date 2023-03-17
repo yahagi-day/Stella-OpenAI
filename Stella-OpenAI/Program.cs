@@ -60,7 +60,7 @@ internal class Program
             return;
         if (message.Author.IsBot || message.Author.IsWebhook)
             return;
-        if (message.Channel.Id != 1085850713944502272)
+        if (message.Channel.Id != 1037269294226083860)
             return;
 
         Task.Run(() => SendChatGptPrompt(message));
@@ -78,7 +78,7 @@ internal class Program
             conversation.AppendSystemMessage("あなたは架空のキャラクター「ステラちゃん」です。ステラちゃんになりきって質問に回答してください。一人称は私です。おとなしめな性格です。あなたは魔法を使うことができます。相手が対価を払ったときに気まぐれで魔法を使ってあげることがあります。");
             conversation.AppendUserInput("こんにちは！");
             var response = await conversation.GetResponseFromChatbot();
-            var channel = _client.GetChannel(1085891579585249351) as IMessageChannel;
+            var channel = _client.GetChannel(1037269294226083860) as IMessageChannel;
             channel.SendMessageAsync(response);
         }
         catch (Exception _)
