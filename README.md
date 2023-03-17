@@ -7,6 +7,10 @@
 - Newtonsoft.Json
 - OpenAI_API
 
+## 環境変数
+- `TOKEN_DISCORD`: Discord Botのトークンを設定します。
+- `TOKEN_OPENAI`: OpenAI APIのトークンを設定します。
+
 ## 機能
 1. Discordサーバー上でチャットを受け付けます。
 2. 受け取ったメッセージをOpenAI APIを利用して返答を生成します。
