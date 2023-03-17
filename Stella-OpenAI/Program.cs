@@ -22,8 +22,8 @@ internal class Program
     {
         try
         {
-            _tokenDiscord = Environment.GetEnvironmentVariable("TOKEN_DISCORD", EnvironmentVariableTarget.User);
-            _tokenOpenAi = Environment.GetEnvironmentVariable("TOKEN_OPENAI", EnvironmentVariableTarget.User);
+            _tokenDiscord = Environment.GetEnvironmentVariable("TOKEN_DISCORD");
+            _tokenOpenAi = Environment.GetEnvironmentVariable("TOKEN_OPENAI");
         }
         catch (Exception ex)
         {
