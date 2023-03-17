@@ -20,9 +20,17 @@ internal class Program
 
     private async Task MainAsync()
     {
+        try
+        {
+            _tokenDiscord = Environment.GetEnvironmentVariable("TOKEN_DISCORD", EnvironmentVariableTarget.User);
+            _tokenOpenAi = Environment.GetEnvironmentVariable("TOKEN_OPENAI", EnvironmentVariableTarget.User);
+        }
+        catch (Exception ex)
+        {
+            Environment.Exit(0);
+        }
         //環境変数からTokenを設定
-        _tokenDiscord = Environment.GetEnvironmentVariable("TOKEN_DISCORD", EnvironmentVariableTarget.User);
-        _tokenOpenAi = Environment.GetEnvironmentVariable("TOKEN_OPENAI", EnvironmentVariableTarget.User);
+        
 
         _client = new DiscordSocketClient(new DiscordSocketConfig() { GatewayIntents = GatewayIntents.All });
         _client.Log += Log;
@@ -55,13 +63,7 @@ internal class Program
         if (message.Channel.Id != 1085891579585249351)
             return;
 
-        var emote = Emote.Parse("<a:working:1085848442468827146>");
-        await message.AddReactionAsync(emote);
-        var responseChat = await SendChatGptPrompt(message.Content);
-
-        await message.Channel.SendMessageAsync(responseChat);
-
-        await message.RemoveReactionAsync(emote, _client.CurrentUser);
+        Task.Run(() => SendChatGptPrompt(message));
     }
 
     OpenAIAPI api;
@@ -74,13 +76,15 @@ internal class Program
         try
         {
             conversation.AppendSystemMessage("あなたは架空のキャラクター「ステラちゃん」です。ステラちゃんになりきって質問に回答してください。一人称は私です。おとなしめな性格です。あなたは魔法を使うことができます。相手が対価を払ったときに気まぐれで魔法を使ってあげることがあります。");
-            var response = await SendChatGptPrompt("こんにちは！");
+            conversation.AppendUserInput("こんにちは！");
+            var response = await conversation.GetResponseFromChatbot();
             var channel = _client.GetChannel(1085891579585249351) as IMessageChannel;
             channel.SendMessageAsync(response);
         }
-        catch (Exception e)
+        catch (Exception _)
         {
-            Console.WriteLine($"SetUpChatGPT:{e}");
+            Console.WriteLine($"Invalid token");
+            Environment.Exit(0);
         }
 
     }
@@ -90,7 +94,8 @@ internal class Program
         try
         {
             conversation.AppendSystemMessage(command.Data.Options.First().Value.ToString());
-            command.FollowupAsync("更新しました。");
+            var response = await conversation.GetResponseFromChatbot();
+            command.FollowupAsync($"更新しました");
         }
         catch (Exception e)
         {
@@ -98,18 +103,22 @@ internal class Program
             throw;
         }
     }
-    private async Task<string> SendChatGptPrompt(string prompt)
+    private async Task SendChatGptPrompt(SocketMessage message)
     {
+        var prompt = message.Content;
+        var emote = Emote.Parse("<a:working:1085848442468827146>");
+        await message.AddReactionAsync(emote);
+
         try
         {
             conversation.AppendUserInput(prompt);
             var response = await conversation.GetResponseFromChatbot();
-            return response;
+            await message.Channel.SendMessageAsync(response, messageReference: new MessageReference(messageId: message.Id));
+            await message.RemoveReactionAsync(emote, _client.CurrentUser);
         }
         catch (Exception e)
         {
             Console.WriteLine(e);
-            return $"送信に失敗しました:SendChatGptPrompt:{e}";
         }
     }
 
