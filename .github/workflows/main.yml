@@ -1,0 +1,36 @@
+name: Deploy to DegitalOcean
+
+on:
+  push: 
+    branches: ["main"]
+  workflow_dispatch: {}
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v1
+      with: 
+        dotnet-version: '7.0.x'
+      
+    - name: Build and Publish
+      run: |
+        dotnet build --configuration Release
+        dotnet publish --configuration Release --output ./publish
+      
+    - name: Deploy to DigitalOcean
+      env:
+        PRIVATE_KEY: ${{ secrets.DEPLOY_PRIVATE_KEY }}
+        HOST: ${{ secrets.IPADDRESS }}
+        USER: ${{ secrets.USER }}
+        APP_DIR: /home/${{ secrets.USER }}/Stella-OpenAI
+      run: |
+        echo "$PRIVATE_KEY" > private_key.pem
+        chmod 600 private_key.pem
+        rsync -avzr -e 'ssh -i private_key.pem -o StrictHostKeyChecking=no' --delete ./publish/ $USER@$HOST:$APP_DIR
+        ssh -i private_key.pem -o StrictHostKeyChecking=no $USER@$HOST "cd $APP_DIR && systemctl restart stella-openai"
+        rm -f private_key.pem
