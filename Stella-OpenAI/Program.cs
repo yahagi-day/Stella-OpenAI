@@ -60,7 +60,7 @@ internal class Program
             return;
         if (message.Author.IsBot || message.Author.IsWebhook)
             return;
-        if (message.Channel.Id != 1085891579585249351)
+        if (message.Channel.Id != 1085850713944502272)
             return;
 
         Task.Run(() => SendChatGptPrompt(message));
