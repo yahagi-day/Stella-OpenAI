@@ -20,7 +20,7 @@ jobs:
     - name: Build and Publish
       run: |
         dotnet build --configuration Release
-        dotnet publish --configuration Release
+        dotnet publish --configuration Release --output ./publish
       
     - name: Deploy to DigitalOcean
       env:
