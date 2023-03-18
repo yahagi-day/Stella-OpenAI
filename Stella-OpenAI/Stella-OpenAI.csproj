@@ -1,16 +1,16 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>net7.0</TargetFramework>
-    <RootNamespace>Stella_OpenAI</RootNamespace>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-  </PropertyGroup>
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net7.0</TargetFramework>
+        <RootNamespace>Stella_OpenAI</RootNamespace>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Discord.Net" Version="3.9.0" />
-    <PackageReference Include="OpenAI" Version="1.6.0" />
-  </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="Discord.Net" Version="3.9.0"/>
+        <PackageReference Include="OpenAI" Version="1.6.0"/>
+    </ItemGroup>
 
 </Project>

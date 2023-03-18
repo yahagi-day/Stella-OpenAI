@@ -1,5 +1,4 @@
 ﻿using Discord;
-using Discord.Commands;
 using Discord.Net;
 using Discord.WebSocket;
 using Newtonsoft.Json;
@@ -10,29 +9,24 @@ namespace Stella_OpenAI;
 
 internal class Program
 {
-    private DiscordSocketClient _client;
-    public static CommandService _commands;
-    public static IServiceProvider _services;
-    private string _tokenDiscord;
-    private string _tokenOpenAi;
+    private OpenAIAPI? _api;
+    private DiscordSocketClient? _client;
+    private Conversation? _conversation;
+    private string? _tokenDiscord;
+    private string? _tokenOpenAi;
 
-    public static Task Main(string[] args) => new Program().MainAsync();
+    public static Task Main(string[] _)
+    {
+        return new Program().MainAsync();
+    }
 
     private async Task MainAsync()
     {
-        try
-        {
-            _tokenDiscord = Environment.GetEnvironmentVariable("TOKEN_DISCORD");
-            _tokenOpenAi = Environment.GetEnvironmentVariable("TOKEN_OPENAI");
-        }
-        catch (Exception ex)
-        {
-            Environment.Exit(0);
-        }
-        //環境変数からTokenを設定
-        
+        //環境変数からTokenを取得
+        _tokenDiscord = Environment.GetEnvironmentVariable("TOKEN_DISCORD");
+        _tokenOpenAi = Environment.GetEnvironmentVariable("TOKEN_OPENAI");
 
-        _client = new DiscordSocketClient(new DiscordSocketConfig() { GatewayIntents = GatewayIntents.All });
+        _client = new DiscordSocketClient(new DiscordSocketConfig { GatewayIntents = GatewayIntents.All });
         _client.Log += Log;
         _client.Ready += Client_Ready;
         _client.SlashCommandExecuted += SlashCommandHandler;
@@ -40,8 +34,8 @@ internal class Program
         AppDomain.CurrentDomain.ProcessExit += DisconnectService;
         await _client.LoginAsync(TokenType.Bot, _tokenDiscord);
         await _client.StartAsync();
-        await SetUpChatGPT();
-        _client.MessageReceived += CommandRecieved;
+        await SetUpChatGpt();
+        _client.MessageReceived += CommandReceived;
         await Task.Delay(-1);
     }
 
@@ -51,11 +45,13 @@ internal class Program
         return Task.CompletedTask;
     }
 
-    private async Task CommandRecieved(SocketMessage socketMessage)
+#pragma warning disable CS1998
+    private async Task CommandReceived(SocketMessage socketMessage)
+#pragma warning restore CS1998
     {
         var message = socketMessage as SocketUserMessage;
 
-        Console.WriteLine($"{message.Channel.Name}:{message.Author.Username}:{message.Content}");
+        Console.WriteLine($"{message?.Channel.Name}:{message?.Author.Username}:{message?.Content}");
         if (message is null)
             return;
         if (message.Author.IsBot || message.Author.IsWebhook)
@@ -63,39 +59,42 @@ internal class Program
         if (message.Channel.Id != 1037269294226083860)
             return;
 
+#pragma warning disable CS4014
         Task.Run(() => SendChatGptPrompt(message));
+#pragma warning restore CS4014
     }
 
-    OpenAIAPI api;
-    Conversation conversation;
-
-    private async Task SetUpChatGPT()
+    private async Task SetUpChatGpt()
     {
-        api = new OpenAIAPI(_tokenOpenAi);
-        conversation = api.Chat.CreateConversation();
+        _api = new OpenAIAPI(_tokenOpenAi);
+        _conversation = _api.Chat.CreateConversation();
         try
         {
-            conversation.AppendSystemMessage("あなたは架空のキャラクター「ステラちゃん」です。ステラちゃんになりきって質問に回答してください。一人称は私です。おとなしめな性格です。あなたは魔法を使うことができます。相手が対価を払ったときに気まぐれで魔法を使ってあげることがあります。");
-            conversation.AppendUserInput("こんにちは！");
-            var response = await conversation.GetResponseFromChatbot();
-            var channel = _client.GetChannel(1037269294226083860) as IMessageChannel;
-            channel.SendMessageAsync(response);
+            _conversation.AppendSystemMessage(
+                "あなたは架空のキャラクター「ステラちゃん」です。ステラちゃんになりきって質問に回答してください。一人称は私です。おとなしめな性格です。あなたは魔法を使うことができます。相手が対価を払ったときに気まぐれで魔法を使ってあげることがあります。");
+            _conversation.AppendUserInput("こんにちは！");
+            var response = await _conversation.GetResponseFromChatbot();
+            var channel = _client?.GetChannel(1037269294226083860) as IMessageChannel;
+#pragma warning disable CS4014
+            channel?.SendMessageAsync(response);
+#pragma warning restore CS4014
         }
-        catch (Exception _)
+        catch (Exception)
         {
-            Console.WriteLine($"Invalid token");
+            Console.WriteLine("Invalid token");
             Environment.Exit(0);
         }
-
     }
 
     private async Task SendChatGptSystemPrompt(SocketSlashCommand command)
     {
         try
         {
-            conversation.AppendSystemMessage(command.Data.Options.First().Value.ToString());
-            var response = await conversation.GetResponseFromChatbot();
-            command.FollowupAsync($"更新しました");
+            _conversation?.AppendSystemMessage(command.Data.Options.First().Value.ToString());
+            await _conversation?.GetResponseFromChatbot()!;
+#pragma warning disable CS4014
+            command.FollowupAsync("更新しました");
+#pragma warning restore CS4014
         }
         catch (Exception e)
         {
@@ -103,6 +102,7 @@ internal class Program
             throw;
         }
     }
+
     private async Task SendChatGptPrompt(SocketMessage message)
     {
         var prompt = message.Content;
@@ -111,10 +111,10 @@ internal class Program
 
         try
         {
-            conversation.AppendUserInput(prompt);
-            var response = await conversation.GetResponseFromChatbot();
-            await message.Channel.SendMessageAsync(response, messageReference: new MessageReference(messageId: message.Id));
-            await message.RemoveReactionAsync(emote, _client.CurrentUser);
+            _conversation?.AppendUserInput(prompt);
+            var response = await _conversation?.GetResponseFromChatbot()!;
+            await message.Channel.SendMessageAsync(response, messageReference: new MessageReference(message.Id));
+            if (_client != null) await message.RemoveReactionAsync(emote, _client.CurrentUser);
         }
         catch (Exception e)
         {
@@ -130,17 +130,19 @@ internal class Program
         resetCommand.WithDescription("AIを初期化します");
 
         //SystemMessageコマンド
-        var SystemCommand = new SlashCommandBuilder();
-        SystemCommand.WithName("system");
-        SystemCommand.WithDescription("System側のpromptを出します")
+        var systemCommand = new SlashCommandBuilder();
+        systemCommand.WithName("system");
+        systemCommand.WithDescription("System側のpromptを出します")
             .AddOption("prompt", ApplicationCommandOptionType.String, "ここにプロンプトを入力！", true);
 
         try
         {
-            await _client.CreateGlobalApplicationCommandAsync(resetCommand.Build());
-            await _client.CreateGlobalApplicationCommandAsync(SystemCommand.Build());
+            await _client?.CreateGlobalApplicationCommandAsync(resetCommand.Build())!;
+            await _client?.CreateGlobalApplicationCommandAsync(systemCommand.Build())!;
         }
+#pragma warning disable CS0618
         catch (ApplicationCommandException e)
+#pragma warning restore CS0618
         {
             var json = JsonConvert.SerializeObject(e.Errors, Formatting.Indented);
             Console.WriteLine($"Client_Ready{json}");
@@ -154,12 +156,16 @@ internal class Program
             switch (command.Data.Name)
             {
                 case "reset":
-                    Task.Run(() => SetUpChatGPT());
-                    await command.RespondAsync($"ステラちゃんの記憶を消しました！");
+#pragma warning disable CS4014
+                    Task.Run(SetUpChatGpt);
+#pragma warning restore CS4014
+                    await command.RespondAsync("ステラちゃんの記憶を消しました！");
                     return;
                 case "system":
                     await command.DeferAsync();
+#pragma warning disable CS4014
                     Task.Run(() => SendChatGptSystemPrompt(command));
+#pragma warning restore CS4014
                     return;
             }
         }
@@ -169,13 +175,13 @@ internal class Program
         }
     }
 
-    private async void DisconnectService(object sender, EventArgs e)
+    private async void DisconnectService(object? sender, EventArgs e)
     {
         //Discord
-        await _client.StopAsync();
-        await _client.LogoutAsync();
+        await _client?.StopAsync()!;
+        await _client?.LogoutAsync()!;
         _client.Log -= Log;
-        _client.MessageReceived -= CommandRecieved;
+        _client.MessageReceived -= CommandReceived;
         _client.SlashCommandExecuted -= SlashCommandHandler;
 
         AppDomain.CurrentDomain.ProcessExit -= DisconnectService;
