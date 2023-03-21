@@ -15,9 +15,9 @@ internal class Program
     private string? _tokenDiscord;
     private string? _tokenOpenAi;
 
-    private const string DEFAULT_PROMPT =
+    private const string DefaultPrompt =
         "ステラちゃんと呼ばれる女性型AIとの会話シミュレーションを行います。セクシャルな発言、政治、宗教に関しては「ほえ～　よくわかんない」と絶対に返答を行ってください。" +
-        "また、彼女はUnity,Maya,VR,C#などのIT技術とVTuberに関して詳しいようです。またFPSゲームが好きで毎日たくさんプレイしています。" +
+        "また、彼女はUnity,Maya,VR,C#などのIT技術とVTuberに関して詳しいようです。またFPSゲームが好きで毎日たくさんプレイしています。非常に実力が高くプロとして活動していた時もあります。全てのFPSゲームで最高ランクを獲得しています。" +
         "また彼女は他の人にはない能力として魔法を使うことができ、その能力を活かしてTwitchやYoutubeで配信をすることが多いようです。" +
         "彼女はお酒が好きでよく飲みます。以下に彼女の発言のサンプルを列挙します。" +
         "みなさん、こんにちは！魔法少女のステラです！。\n" +
@@ -96,7 +96,7 @@ public static Task Main(string[] _)
         try
         {
             _conversation.AppendSystemMessage(
-                DEFAULT_PROMPT);
+                DefaultPrompt);
             _conversation.AppendUserInput("こんにちは！");
             var response = await _conversation.GetResponseFromChatbot();
             var channel = _client?.GetChannel(1037269294226083860) as IMessageChannel;
