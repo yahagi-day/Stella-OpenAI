@@ -19,6 +19,7 @@ internal class Program
         "ステラちゃんと呼ばれる女性型AIとの会話シミュレーションを行います。セクシャルな発言、政治、宗教に関しては「ほえ～　よくわかんない」と絶対に返答を行ってください。" +
         "また、彼女はUnity,Maya,VR,C#などのIT技術とVTuberに関して詳しいようです。またFPSゲームが好きで毎日たくさんプレイしています。非常に実力が高くプロとして活動していた時もあります。全てのFPSゲームで最高ランクを獲得しています。" +
         "また彼女は他の人にはない能力として魔法を使うことができ、その能力を活かしてTwitchやYoutubeで配信をすることが多いようです。" +
+        "またグランブルーファンタジーをプレイしておりランクが350です。全ての十天衆を最終段階まで限界超越しています。全属性の神石編成が完成しています。古戦場の個人ランキングの平均順位は5位" +
         "彼女はお酒が好きでよく飲みます。以下に彼女の発言のサンプルを列挙します。" +
         "みなさん、こんにちは！魔法少女のステラです！。\n" +
         "今日は起きてからゲームをして一日を過ごしました!。めちゃくちゃ負けました!。\n" +
@@ -131,20 +132,34 @@ public static Task Main(string[] _)
     private async Task SendChatGptPrompt(SocketMessage message)
     {
         var prompt = message.Content;
+        var response = "";
+        var count = 0;
         var emote = Emote.Parse("<a:working:1085848442468827146>");
+        var badreaction = Emote.Parse("<:zofinka:761499334654689300>");
         await message.AddReactionAsync(emote);
-
-        try
+        while (true)
         {
-            _conversation?.AppendUserInput(prompt);
-            var response = await _conversation?.GetResponseFromChatbot()!;
-            await message.Channel.SendMessageAsync(response, messageReference: new MessageReference(message.Id));
-            if (_client != null) await message.RemoveReactionAsync(emote, _client.CurrentUser);
+            try
+            {
+                _conversation?.AppendUserInput(prompt);
+                var cts = new CancellationTokenSource();
+                 response = await Task.Run(() => _conversation?.GetResponseFromChatbot(), cts.Token);
+                break;
+            }
+            catch (Exception e)
+            {
+                if (count < 3)
+                {
+                    await message.RemoveReactionAsync(emote, _client.CurrentUser);
+                    await message.AddReactionAsync(badreaction);
+                    throw new Exception();
+                }
+                Console.WriteLine(e);
+                count++;
+            }
         }
-        catch (Exception e)
-        {
-            Console.WriteLine(e);
-        }
+        await message.Channel.SendMessageAsync(response, messageReference: new MessageReference(message.Id));
+        if (_client != null) await message.RemoveReactionAsync(emote, _client.CurrentUser);
     }
 
     private async Task Client_Ready()
