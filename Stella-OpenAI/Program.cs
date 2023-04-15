@@ -129,6 +129,11 @@ public static Task Main(string[] _)
         }
     }
 
+    private async Task SendMessage(string response, SocketMessage message, Emote emote)
+    {
+        await message.Channel.SendMessageAsync(response, messageReference: new MessageReference(message.Id));
+        if (_client != null) await message.RemoveReactionAsync(emote, _client.CurrentUser);
+    }
     private async Task SendChatGptPrompt(SocketMessage message)
     {
         var prompt = message.Content;
@@ -137,29 +142,25 @@ public static Task Main(string[] _)
         var emote = Emote.Parse("<a:working:1085848442468827146>");
         var badreaction = Emote.Parse("<:zofinka:761499334654689300>");
         await message.AddReactionAsync(emote);
-        while (true)
+        try
         {
-            try
+            _conversation?.AppendUserInput(prompt);
+            await foreach (var res in _conversation?.StreamResponseEnumerableFromChatbotAsync())
             {
-                _conversation?.AppendUserInput(prompt);
-                var cts = new CancellationTokenSource();
-                 response = await Task.Run(() => _conversation?.GetResponseFromChatbot(), cts.Token);
-                break;
-            }
-            catch (Exception e)
-            {
-                if (count < 3)
-                {
-                    await message.RemoveReactionAsync(emote, _client.CurrentUser);
-                    await message.AddReactionAsync(badreaction);
-                    return;
-                }
-                Console.WriteLine(e);
-                count++;
+                SendMessage(res, message, emote);
             }
         }
-        await message.Channel.SendMessageAsync(response, messageReference: new MessageReference(message.Id));
-        if (_client != null) await message.RemoveReactionAsync(emote, _client.CurrentUser);
+        catch (Exception e)
+        {
+            if (count < 3)
+            {
+                await message.RemoveReactionAsync(emote, _client.CurrentUser);
+                await message.AddReactionAsync(badreaction);
+                return;
+            }
+            Console.WriteLine(e);
+            count++;
+        }
     }
 
     private async Task Client_Ready()
