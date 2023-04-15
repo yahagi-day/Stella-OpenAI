@@ -152,7 +152,7 @@ public static Task Main(string[] _)
                 {
                     await message.RemoveReactionAsync(emote, _client.CurrentUser);
                     await message.AddReactionAsync(badreaction);
-                    throw new Exception();
+                    return;
                 }
                 Console.WriteLine(e);
                 count++;
