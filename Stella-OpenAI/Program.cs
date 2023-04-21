@@ -97,9 +97,7 @@ public static Task Main(string[] _)
         {
             _channelList[command.Channel.Id].AppendSystemMessage(command.Data.Options.First().Value.ToString());
             await _channelList[command.Channel.Id].GetResponseFromChatbotAsync();
-#pragma warning disable CS4014
-            command.FollowupAsync("更新しました");
-#pragma warning restore CS4014
+            await command.FollowupAsync("更新しました");
         }
         catch (Exception e)
         {
@@ -125,7 +123,7 @@ public static Task Main(string[] _)
         }
         catch (Exception)
         {
-            await message.RemoveReactionAsync(emote, _client.CurrentUser);
+            await message.RemoveReactionAsync(emote, _client?.CurrentUser);
             await message.AddReactionAsync(badReaction);
             return;
         }
@@ -138,7 +136,7 @@ public static Task Main(string[] _)
     {
         if (!_channelList.ContainsKey(command.Channel.Id))
         {
-            _channelList.Add(command.Channel.Id, _api.Chat.CreateConversation());
+            _channelList.Add(command.Channel.Id, _api?.Chat.CreateConversation()!);
             _channelList[command.Channel.Id].AppendSystemMessage(DefaultPrompt);
         }
         _channelList[command.Channel.Id].AppendUserInput("こんにちは");
@@ -156,12 +154,21 @@ public static Task Main(string[] _)
         _channelList.Remove(command.Channel.Id);
         await command.FollowupAsync("Stella-Chanは立ち去りました。");
     }
+
+    private async void ResetConversation(SocketInteraction command)
+    {
+        _channelList[command.Channel.Id] = _api?.Chat.CreateConversation()!;
+        _channelList[command.Channel.Id].AppendSystemMessage(DefaultPrompt);
+        _channelList[command.Channel.Id].AppendUserInput("こんにちは");
+        var response = await _channelList[command.Channel.Id].GetResponseFromChatbotAsync();
+        await command.Channel.SendMessageAsync(response);
+    }
     private async Task Client_Ready()
     {
         //resetコマンド
-        var resetCommand = new SlashCommandBuilder();
+        var  resetCommand = new SlashCommandBuilder();
         resetCommand.WithName("reset");
-        resetCommand.WithDescription("Stella-Chanを初期化します");
+        resetCommand.WithDescription("Stella-Chanの記憶を消します。若干性格が変わります。");
 
         //SystemMessageコマンド
         var systemCommand = new SlashCommandBuilder();
@@ -184,11 +191,11 @@ public static Task Main(string[] _)
         versionCommand.WithDescription("Stella-Chanのバージョンを表示します。");
         try
         {
-            await _client.CreateGlobalApplicationCommandAsync(resetCommand.Build());
-            await _client.CreateGlobalApplicationCommandAsync(systemCommand.Build());
-            await _client.CreateGlobalApplicationCommandAsync(enableCommand.Build());
-            await _client.CreateGlobalApplicationCommandAsync(disableCommand.Build());
-            await _client.CreateGlobalApplicationCommandAsync(versionCommand.Build());
+            await _client?.CreateGlobalApplicationCommandAsync(resetCommand.Build())!;
+            await _client?.CreateGlobalApplicationCommandAsync(systemCommand.Build())!;
+            await _client?.CreateGlobalApplicationCommandAsync(enableCommand.Build())!;
+            await _client?.CreateGlobalApplicationCommandAsync(disableCommand.Build())!;
+            await _client?.CreateGlobalApplicationCommandAsync(versionCommand.Build())!;
         }
 #pragma warning disable CS0618
         catch (ApplicationCommandException e)
@@ -209,6 +216,7 @@ public static Task Main(string[] _)
 #pragma warning disable CS4014
                     //Task.Run(SetUpChatGpt);
 #pragma warning restore CS4014
+                    ResetConversation(command);
                     await command.RespondAsync("ステラちゃんの記憶を消しました！");
                     return;
                 case "system":
@@ -219,12 +227,12 @@ public static Task Main(string[] _)
                     return;
                 case "enable":
                     //有効化するやつ
-                    command.DeferAsync();
+                    await command.DeferAsync();
                     EnableTalkInChannel(command);
                     return;
                 case "disable":
                     //無効化するやつ
-                    command.DeferAsync();
+                    await command.DeferAsync();
                     DisableTalkInChannel(command);
                     return;
                 case "version":
