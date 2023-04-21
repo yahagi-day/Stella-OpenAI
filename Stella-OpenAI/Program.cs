@@ -136,10 +136,11 @@ public static Task Main(string[] _)
 
     private async void EnableTalkInChannel(SocketInteraction command)
     {
-        if(_channelList.ContainsKey(command.Channel.Id))
-            return;
-        _channelList.Add(command.Channel.Id, _api.Chat.CreateConversation());
-        _channelList[command.Channel.Id].AppendSystemMessage(DefaultPrompt);
+        if (!_channelList.ContainsKey(command.Channel.Id))
+        {
+            _channelList.Add(command.Channel.Id, _api.Chat.CreateConversation());
+            _channelList[command.Channel.Id].AppendSystemMessage(DefaultPrompt);
+        }
         _channelList[command.Channel.Id].AppendUserInput("こんにちは");
         var response = await _channelList[command.Channel.Id].GetResponseFromChatbotAsync();
         await command.FollowupAsync(response);
@@ -147,17 +148,20 @@ public static Task Main(string[] _)
 
     private async void DisableTalkInChannel(SocketInteraction command)
     {
-        if(!_channelList.ContainsKey(command.Channel.Id))
+        if (!_channelList.ContainsKey(command.Channel.Id))
+        {
+            await command.FollowupAsync("このチャンネルにStella-Chanは居なかったみたいです。");
             return;
+        }
         _channelList.Remove(command.Channel.Id);
-        await command.FollowupAsync("無効化しました");
+        await command.FollowupAsync("Stella-Chanは立ち去りました。");
     }
     private async Task Client_Ready()
     {
         //resetコマンド
         var resetCommand = new SlashCommandBuilder();
         resetCommand.WithName("reset");
-        resetCommand.WithDescription("AIを初期化します");
+        resetCommand.WithDescription("Stella-Chanを初期化します");
 
         //SystemMessageコマンド
         var systemCommand = new SlashCommandBuilder();
@@ -168,12 +172,12 @@ public static Task Main(string[] _)
         //enableCommand
         var enableCommand = new SlashCommandBuilder();
         enableCommand.WithName("enable");
-        enableCommand.WithDescription("このチャンネルでStella-Chanとの会話を有効化します。");
+        enableCommand.WithDescription("このチャンネルにStella-Chanを呼びます");
 
         //disableCommand
         var disableCommand = new SlashCommandBuilder();
         disableCommand.WithName("disable");
-        disableCommand.WithDescription("このチャンネルでStella-Chanとの会話を無効化します。");
+        disableCommand.WithDescription("このチャンネルのStella-Chanが居なくなります");
 
         var versionCommand = new SlashCommandBuilder();
         versionCommand.WithName("version");
