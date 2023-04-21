@@ -1,4 +1,5 @@
 # Stella-OpenAI
+[![Deploy to DegitalOcean](https://github.com/yahagi-day/Stella-OpenAI/actions/workflows/main.yml/badge.svg)](https://github.com/yahagi-day/Stella-OpenAI/actions/workflows/main.yml)
 
 このコードは、Discordで動作するチャットボット「ステラちゃん」を実装したC#プログラムです。
 
