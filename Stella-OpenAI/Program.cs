@@ -133,23 +133,23 @@ public static Task Main(string[] _)
         if (_client != null) await message.RemoveReactionAsync(emote, _client.CurrentUser);
     }
 
-    private async void EnableTalkInChannel(ISocketMessageChannel channel)
+    private async void EnableTalkInChannel(SocketInteraction command)
     {
-        if(_channelList.ContainsKey(channel.Id))
+        if(_channelList.ContainsKey(command.Channel.Id))
             return;
-        _channelList.Add(channel.Id, _api.Chat.CreateConversation());
-        _channelList[channel.Id].AppendSystemMessage(DefaultPrompt);
-        _channelList[channel.Id].AppendUserInput("こんにちは");
-        var response = await _channelList[channel.Id].GetResponseFromChatbotAsync();
-        await channel.SendMessageAsync(response);
+        _channelList.Add(command.Channel.Id, _api.Chat.CreateConversation());
+        _channelList[command.Channel.Id].AppendSystemMessage(DefaultPrompt);
+        _channelList[command.Channel.Id].AppendUserInput("こんにちは");
+        var response = await _channelList[command.Channel.Id].GetResponseFromChatbotAsync();
+        await command.RespondAsync(response);
     }
 
-    private async void DisableTalkInChannel(ISocketMessageChannel channel)
+    private async void DisableTalkInChannel(SocketInteraction command)
     {
-        if(!_channelList.ContainsKey(channel.Id))
+        if(!_channelList.ContainsKey(command.Channel.Id))
             return;
-        _channelList.Remove(channel.Id);
-        await channel.SendMessageAsync("無効化しました");
+        _channelList.Remove(command.Channel.Id);
+        await command.RespondAsync("無効化しました");
     }
     private async Task Client_Ready()
     {
@@ -209,11 +209,11 @@ public static Task Main(string[] _)
                     return;
                 case "enable":
                     //有効化するやつ
-                    EnableTalkInChannel(command.Channel);
+                    EnableTalkInChannel(command);
                     return;
                 case "disable":
                     //無効化するやつ
-                    DisableTalkInChannel(command.Channel);
+                    DisableTalkInChannel(command);
                     return;
             }
         }
