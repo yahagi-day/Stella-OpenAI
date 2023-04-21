@@ -142,7 +142,7 @@ public static Task Main(string[] _)
         _channelList[command.Channel.Id].AppendSystemMessage(DefaultPrompt);
         _channelList[command.Channel.Id].AppendUserInput("こんにちは");
         var response = await _channelList[command.Channel.Id].GetResponseFromChatbotAsync();
-        await command.RespondAsync(response);
+        await command.FollowupAsync(response);
     }
 
     private async void DisableTalkInChannel(SocketInteraction command)
@@ -150,7 +150,7 @@ public static Task Main(string[] _)
         if(!_channelList.ContainsKey(command.Channel.Id))
             return;
         _channelList.Remove(command.Channel.Id);
-        await command.RespondAsync("無効化しました");
+        await command.FollowupAsync("無効化しました");
     }
     private async Task Client_Ready()
     {
@@ -215,10 +215,12 @@ public static Task Main(string[] _)
                     return;
                 case "enable":
                     //有効化するやつ
+                    command.DeferAsync();
                     EnableTalkInChannel(command);
                     return;
                 case "disable":
                     //無効化するやつ
+                    command.DeferAsync();
                     DisableTalkInChannel(command);
                     return;
                 case "version":
