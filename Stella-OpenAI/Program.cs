@@ -13,7 +13,8 @@ internal class Program
     private DiscordSocketClient? _client;
     private string? _tokenDiscord;
     private string? _tokenOpenAi;
-    private Dictionary<ulong, Conversation> _channelList = new ();
+    private readonly Dictionary<ulong, Conversation> _channelList = new ();
+    private const string Version = "0.1.0";
 
     private const string DefaultPrompt =
         "ステラちゃんと呼ばれる女性型AIとの会話シミュレーションを行います。セクシャルな発言、政治、宗教に関しては「ほえ～　よくわかんない」と絶対に返答を行ってください。" +
@@ -171,14 +172,19 @@ public static Task Main(string[] _)
 
         //disableCommand
         var disableCommand = new SlashCommandBuilder();
-        disableCommand.WithDescription("disable");
+        disableCommand.WithName("disable");
         disableCommand.WithDescription("このチャンネルでStella-Chanとの会話を無効化します。");
+
+        var versionCommand = new SlashCommandBuilder();
+        versionCommand.WithName("version");
+        versionCommand.WithDescription("Stella-Chanのバージョンを表示します。");
         try
         {
-            await _client.CreateGlobalApplicationCommandAsync(resetCommand.Build())!;
-            await _client.CreateGlobalApplicationCommandAsync(systemCommand.Build())!;
-            await _client.CreateGlobalApplicationCommandAsync(enableCommand.Build())!;
-            await _client.CreateGlobalApplicationCommandAsync(disableCommand.Build()!);
+            await _client.CreateGlobalApplicationCommandAsync(resetCommand.Build());
+            await _client.CreateGlobalApplicationCommandAsync(systemCommand.Build());
+            await _client.CreateGlobalApplicationCommandAsync(enableCommand.Build());
+            await _client.CreateGlobalApplicationCommandAsync(disableCommand.Build());
+            await _client.CreateGlobalApplicationCommandAsync(versionCommand.Build());
         }
 #pragma warning disable CS0618
         catch (ApplicationCommandException e)
@@ -214,6 +220,9 @@ public static Task Main(string[] _)
                 case "disable":
                     //無効化するやつ
                     DisableTalkInChannel(command);
+                    return;
+                case "version":
+                    await command.RespondAsync(Version);
                     return;
             }
         }
