@@ -11,9 +11,9 @@ internal class Program
 {
     private OpenAIAPI? _api;
     private DiscordSocketClient? _client;
-    private Conversation? _conversation;
     private string? _tokenDiscord;
     private string? _tokenOpenAi;
+    private Dictionary<ulong, Conversation> _channelList = new ();
 
     private const string DefaultPrompt =
         "ステラちゃんと呼ばれる女性型AIとの会話シミュレーションを行います。セクシャルな発言、政治、宗教に関しては「ほえ～　よくわかんない」と絶対に返答を行ってください。" +
@@ -52,6 +52,7 @@ public static Task Main(string[] _)
         _tokenDiscord = Environment.GetEnvironmentVariable("TOKEN_DISCORD");
         _tokenOpenAi = Environment.GetEnvironmentVariable("TOKEN_OPENAI");
 
+        _api = new OpenAIAPI(new APIAuthentication(_tokenOpenAi));
         _client = new DiscordSocketClient(new DiscordSocketConfig { GatewayIntents = GatewayIntents.All });
         _client.Log += Log;
         _client.Ready += Client_Ready;
@@ -60,7 +61,6 @@ public static Task Main(string[] _)
         AppDomain.CurrentDomain.ProcessExit += DisconnectService;
         await _client.LoginAsync(TokenType.Bot, _tokenDiscord);
         await _client.StartAsync();
-        await SetUpChatGpt();
         _client.MessageReceived += CommandReceived;
         await Task.Delay(-1);
     }
@@ -82,7 +82,7 @@ public static Task Main(string[] _)
             return;
         if (message.Author.IsBot || message.Author.IsWebhook)
             return;
-        if (message.Channel.Id != 1037269294226083860)
+        if (!_channelList.ContainsKey(socketMessage.Channel.Id))
             return;
 
 #pragma warning disable CS4014
@@ -90,34 +90,12 @@ public static Task Main(string[] _)
 #pragma warning restore CS4014
     }
 
-    private async Task SetUpChatGpt()
-    {
-        _api = new OpenAIAPI(_tokenOpenAi);
-        _conversation = _api.Chat.CreateConversation();
-        try
-        {
-            _conversation.AppendSystemMessage(
-                DefaultPrompt);
-            _conversation.AppendUserInput("こんにちは！");
-            var response = await _conversation.GetResponseFromChatbot();
-            var channel = _client?.GetChannel(1037269294226083860) as IMessageChannel;
-#pragma warning disable CS4014
-            channel?.SendMessageAsync(response);
-#pragma warning restore CS4014
-        }
-        catch (Exception)
-        {
-            Console.WriteLine("Invalid token");
-            Environment.Exit(0);
-        }
-    }
-
     private async Task SendChatGptSystemPrompt(SocketSlashCommand command)
     {
         try
         {
-            _conversation?.AppendSystemMessage(command.Data.Options.First().Value.ToString());
-            await _conversation?.GetResponseFromChatbot()!;
+            _channelList[command.Channel.Id].AppendSystemMessage(command.Data.Options.First().Value.ToString());
+            await _channelList[command.Channel.Id].GetResponseFromChatbotAsync();
 #pragma warning disable CS4014
             command.FollowupAsync("更新しました");
 #pragma warning restore CS4014
@@ -132,36 +110,47 @@ public static Task Main(string[] _)
     private async Task SendChatGptPrompt(SocketMessage message)
     {
         var prompt = message.Content;
-        var response = "";
-        var count = 0;
+        string response;
         var emote = Emote.Parse("<a:working:1085848442468827146>");
-        var badreaction = Emote.Parse("<:zofinka:761499334654689300>");
+        // ReSharper disable once StringLiteralTypo
+        var badReaction = Emote.Parse("<:zofinka:761499334654689300>");
         await message.AddReactionAsync(emote);
-        while (true)
+        try
         {
-            try
-            {
-                _conversation?.AppendUserInput(prompt);
-                var cts = new CancellationTokenSource();
-                response = await Task.Run(() => _conversation?.GetResponseFromChatbotAsync(), cts.Token);
-                break;
-            }
-            catch (Exception e)
-            {
-                if (count < 3)
-                {
-                    await message.RemoveReactionAsync(emote, _client.CurrentUser);
-                    await message.AddReactionAsync(badreaction);
-                    return;
-                }
-                Console.WriteLine(e);
-                count++;
-            }
+            _channelList[message.Channel.Id].AppendUserInput(prompt);
+            var cts = new CancellationTokenSource();
+            response = await Task.Run(() => _channelList[message.Channel.Id].GetResponseFromChatbotAsync(),
+                cts.Token);
         }
+        catch (Exception)
+        {
+            await message.RemoveReactionAsync(emote, _client.CurrentUser);
+            await message.AddReactionAsync(badReaction);
+            return;
+        }
+
         await message.Channel.SendMessageAsync(response, messageReference: new MessageReference(message.Id));
         if (_client != null) await message.RemoveReactionAsync(emote, _client.CurrentUser);
     }
 
+    private async void EnableTalkInChannel(ISocketMessageChannel channel)
+    {
+        if(_channelList.ContainsKey(channel.Id))
+            return;
+        _channelList.Add(channel.Id, _api.Chat.CreateConversation());
+        _channelList[channel.Id].AppendSystemMessage(DefaultPrompt);
+        _channelList[channel.Id].AppendUserInput("こんにちは");
+        var response = await _channelList[channel.Id].GetResponseFromChatbotAsync();
+        await channel.SendMessageAsync(response);
+    }
+
+    private async void DisableTalkInChannel(ISocketMessageChannel channel)
+    {
+        if(!_channelList.ContainsKey(channel.Id))
+            return;
+        _channelList.Remove(channel.Id);
+        await channel.SendMessageAsync("無効化しました");
+    }
     private async Task Client_Ready()
     {
         //resetコマンド
@@ -174,11 +163,22 @@ public static Task Main(string[] _)
         systemCommand.WithName("system");
         systemCommand.WithDescription("System側のpromptを出します")
             .AddOption("prompt", ApplicationCommandOptionType.String, "ここにプロンプトを入力！", true);
+        
+        //enableCommand
+        var enableCommand = new SlashCommandBuilder();
+        enableCommand.WithName("enable");
+        enableCommand.WithDescription("このチャンネルでStella-Chanとの会話を有効化します。");
 
+        //disableCommand
+        var disableCommand = new SlashCommandBuilder();
+        disableCommand.WithDescription("disable");
+        disableCommand.WithDescription("このチャンネルでStella-Chanとの会話を無効化します。");
         try
         {
-            await _client?.CreateGlobalApplicationCommandAsync(resetCommand.Build())!;
-            await _client?.CreateGlobalApplicationCommandAsync(systemCommand.Build())!;
+            await _client.CreateGlobalApplicationCommandAsync(resetCommand.Build())!;
+            await _client.CreateGlobalApplicationCommandAsync(systemCommand.Build())!;
+            await _client.CreateGlobalApplicationCommandAsync(enableCommand.Build())!;
+            await _client.CreateGlobalApplicationCommandAsync(disableCommand.Build()!);
         }
 #pragma warning disable CS0618
         catch (ApplicationCommandException e)
@@ -197,7 +197,7 @@ public static Task Main(string[] _)
             {
                 case "reset":
 #pragma warning disable CS4014
-                    Task.Run(SetUpChatGpt);
+                    //Task.Run(SetUpChatGpt);
 #pragma warning restore CS4014
                     await command.RespondAsync("ステラちゃんの記憶を消しました！");
                     return;
@@ -206,6 +206,14 @@ public static Task Main(string[] _)
 #pragma warning disable CS4014
                     Task.Run(() => SendChatGptSystemPrompt(command));
 #pragma warning restore CS4014
+                    return;
+                case "enable":
+                    //有効化するやつ
+                    EnableTalkInChannel(command.Channel);
+                    return;
+                case "disable":
+                    //無効化するやつ
+                    DisableTalkInChannel(command.Channel);
                     return;
             }
         }
