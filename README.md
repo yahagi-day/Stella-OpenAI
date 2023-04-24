@@ -1,5 +1,6 @@
 # Stella-OpenAI
 [![Deploy to DegitalOcean](https://github.com/yahagi-day/Stella-OpenAI/actions/workflows/main.yml/badge.svg)](https://github.com/yahagi-day/Stella-OpenAI/actions/workflows/main.yml)
+<a href="https://discord.com/api/oauth2/authorize?client_id=1086013762210893917&permissions=395328&scope=bot"><img alt="Invite Link" src="https://img.shields.io/badge/bot-invite-blueviolet"></a>
 
 このコードは、Discordで動作するチャットボット「ステラちゃん」を実装したC#プログラムです。
 
