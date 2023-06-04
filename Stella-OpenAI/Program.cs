@@ -140,7 +140,7 @@ internal class Program
         {
             _channelList.Add(command.Channel.Id, _api?.Chat.CreateConversation(new ChatRequest()
             {
-                Model = Model.GPT4
+                Model = Model.GPT4_32k_Context
             })!);
             _channelList[command.Channel.Id].AppendSystemMessage(DefaultPrompt);
         }
