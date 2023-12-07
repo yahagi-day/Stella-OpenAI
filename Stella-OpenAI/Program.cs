@@ -51,9 +51,9 @@ internal class Program
     private async Task MainAsync()
     {
         //環境変数からTokenを取得
-        _tokenDiscord = Environment.GetEnvironmentVariable("TOKEN_DISCORD", EnvironmentVariableTarget.User);
-        _tokenOpenAi = Environment.GetEnvironmentVariable("TOKEN_OPENAI", EnvironmentVariableTarget.User);
-        _tokenLlmReport = Environment.GetEnvironmentVariable("TOKEN_LLMREPORT", EnvironmentVariableTarget.User);
+        _tokenDiscord = Environment.GetEnvironmentVariable("TOKEN_DISCORD");
+        _tokenOpenAi = Environment.GetEnvironmentVariable("TOKEN_OPENAI");
+        _tokenLlmReport = Environment.GetEnvironmentVariable("TOKEN_LLMREPORT");
 
         _client = new DiscordSocketClient(new DiscordSocketConfig { GatewayIntents = GatewayIntents.All });
         _client.Log += Log;
