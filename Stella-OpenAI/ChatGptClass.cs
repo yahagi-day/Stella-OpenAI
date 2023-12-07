@@ -3,39 +3,60 @@ namespace Stella_OpenAI;
 public abstract class ChatGptClass
 {
     [Serializable]
-    public class ChatGPTMessageModel
+    public class ChatGptResponseMessageModel
     {
         public string role;
         public string content;
     }
+    
+    public class ChatGptMessageModel
+    {
+        public string role;
+        public List<ChatGptMessageModelContent> content;
+    }
 
+    [Serializable]
+    public class ChatGptMessageModelContent
+    {
+        public string type;
+        public string text;
+        public string? image_url;
+    }
 //ChatGPT APIにRequestを送るためのJSON用クラス
     [Serializable]
-    public class ChatGPTCompletionRequestModel
+    public class ChatGptCompletionRequestModel
     {
         public string model;
-        public List<ChatGPTMessageModel> messages;
+        public List<ChatGptMessageModel?> messages;
+        public int max_tokens;
     }
 
 //ChatGPT APIからのResponseを受け取るためのクラス
     [System.Serializable]
-    public class ChatGPTResponseModel
+    public class ChatGptResponseModel
     {
         public string id;
         public string @object;
         public int created;
-        public Choice[] choices;
+        public string model;
         public Usage usage;
+        public Choice[] choices;
 
-        [System.Serializable]
+        [Serializable]
         public class Choice
         {
+            public ChatGptResponseMessageModel message;
+            public FinishDetails finish_details;
             public int index;
-            public ChatGPTMessageModel message;
-            public string finish_reason;
         }
 
-        [System.Serializable]
+        [Serializable]
+        public class FinishDetails
+        {
+            public string type;
+            public string stop;
+        }
+        [Serializable]
         public class Usage
         {
             public int prompt_tokens;

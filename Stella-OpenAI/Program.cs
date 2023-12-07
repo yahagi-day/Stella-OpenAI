@@ -1,9 +1,9 @@
-﻿using System.Net;
-using Discord;
+﻿using Discord;
 using Discord.Net;
 using Discord.WebSocket;
 using Newtonsoft.Json;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Stella_OpenAI;
 
@@ -14,8 +14,8 @@ internal class Program
     private string? _tokenDiscord;
     private string? _tokenOpenAi;
     private string? _tokenLlmReport;
-    private readonly Dictionary<ulong, List<ChatGptClass.ChatGPTMessageModel>> _channelList = new ();
-    private const string Version = "0.3.0 GPT-4";
+    private readonly Dictionary<ulong, List<ChatGptClass.ChatGptMessageModel?>> _channelList = new ();
+    private const string Version = "0.4.0 gpt-4-vision-preview";
 
     private const string DefaultPrompt =
         "ステラちゃんと呼ばれる女性型AIとの会話シミュレーションを行います。セクシャルな発言、政治、宗教に関しては「ほえ～　よくわかんない」と絶対に返答を行ってください。" +
@@ -51,9 +51,9 @@ internal class Program
     private async Task MainAsync()
     {
         //環境変数からTokenを取得
-        _tokenDiscord = Environment.GetEnvironmentVariable("TOKEN_DISCORD");
-        _tokenOpenAi = Environment.GetEnvironmentVariable("TOKEN_OPENAI");
-        _tokenLlmReport = Environment.GetEnvironmentVariable("TOKEN_LLMREPORT");
+        _tokenDiscord = Environment.GetEnvironmentVariable("TOKEN_DISCORD", EnvironmentVariableTarget.User);
+        _tokenOpenAi = Environment.GetEnvironmentVariable("TOKEN_OPENAI", EnvironmentVariableTarget.User);
+        _tokenLlmReport = Environment.GetEnvironmentVariable("TOKEN_LLMREPORT", EnvironmentVariableTarget.User);
 
         _client = new DiscordSocketClient(new DiscordSocketConfig { GatewayIntents = GatewayIntents.All });
         _client.Log += Log;
@@ -96,7 +96,7 @@ internal class Program
     {
         try
         {
-            _channelList[command.Channel.Id].Add(new ChatGptClass.ChatGPTMessageModel{role = "system", content = DefaultPrompt});
+            _channelList[command.Channel.Id].Add(new ChatGptClass.ChatGptMessageModel{role = "system", content = {new ChatGptClass.ChatGptMessageModelContent{type = "text", text = DefaultPrompt}}});
             await command.FollowupAsync("更新しました");
         }
         catch (Exception e)
@@ -108,19 +108,43 @@ internal class Program
 
     private async Task SendChatGptPrompt(SocketMessage message)
     {
-        var prompt = message.Content;
+        bool isImage = false;
         string response;
         var emote = Emote.Parse("<a:working:1085848442468827146>");
         // ReSharper disable once StringLiteralTypo
         var badReaction = Emote.Parse("<:zofinka:761499334654689300>");
         await message.AddReactionAsync(emote);
+        var contentType = message.Attachments.FirstOrDefault()?.ContentType;
+        if (contentType != null && new Regex("image/(jpeg|png)").IsMatch(contentType))
+        {
+            isImage = true;
+        }
         try
         {
-            _channelList[message.Channel.Id].Add(new ChatGptClass.ChatGPTMessageModel
+            if (isImage)
             {
-                role = "user",
-                content = prompt
-            });
+                _channelList[message.Channel.Id].Add(new ChatGptClass.ChatGptMessageModel
+                {
+                    role = "user",
+                    content = new()
+                    {
+                        new(){type = "text", text = message.Content ?? "この画像には何が写っている?"},
+                        new(){type = "image_url", image_url = message.Attachments.FirstOrDefault()?.Url}
+                    }
+                });
+            }
+            else
+            {
+                _channelList[message.Channel.Id].Add(new ChatGptClass.ChatGptMessageModel
+                {
+                    role = "user",
+                    content = new List<ChatGptClass.ChatGptMessageModelContent>
+                    {
+                        new (){type = "text", text = message.Content}
+                    }
+                });
+            }
+            
             response = await SendOpenAiRequestAsync(_channelList[message.Channel.Id]);
         }
         catch (Exception)
@@ -134,50 +158,72 @@ internal class Program
         if (_client != null) await message.RemoveReactionAsync(emote, _client.CurrentUser);
     }
 
-    private async Task<string> SendOpenAiRequestAsync(List<ChatGptClass.ChatGPTMessageModel> body)
+    private async Task<string> SendOpenAiRequestAsync(List<ChatGptClass.ChatGptMessageModel?> body)
     {
         var headers = new Dictionary<string, string>
         {
             {"Authorization", "Bearer " + _tokenOpenAi},
-            {"Content-type", "application/json"},
             {"X-Slack-No-Retry", "1"},
             {"X-Api-Key", "Bearer " + _tokenLlmReport}
         };
-        var options = new ChatGptClass.ChatGPTCompletionRequestModel()
+        var options = new ChatGptClass.ChatGptCompletionRequestModel()
         {
-            model = "gpt-4",
-            messages = body
+            model = "gpt-4-vision-preview",
+            messages = body,
+            max_tokens = 2000
         };
-        var jsonOption = JsonConvert.SerializeObject(options);
+        var jsonSerializerSettings = new JsonSerializerSettings
+        {
+            NullValueHandling = NullValueHandling.Ignore
+        };
+        var jsonOption = JsonConvert.SerializeObject(options, jsonSerializerSettings);
         var cts = new CancellationTokenSource();
-        var responseString = await SendHttpRequestAsync(ApiUrl, jsonOption, headers, cts.Token);
-        var responseObject = JsonConvert.DeserializeObject<ChatGptClass.ChatGPTResponseModel>(responseString);
-        body.Add(responseObject?.choices[0].message);
-        return responseObject.choices[0].message.content;
+        var responseObject = new ChatGptClass.ChatGptResponseModel();
+        try
+        {
+            var responseString = await SendHttpRequestAsync(ApiUrl, jsonOption, headers, cts.Token);
+            responseObject = JsonConvert.DeserializeObject<ChatGptClass.ChatGptResponseModel>(responseString!);
+        }
+
+        catch
+        {
+            cts.Cancel();
+        }
+        
+        body.Add(ConvertResponseToMessage(responseObject?.choices[0].message));
+        return responseObject?.choices[0].message.content;
     }
-    public async Task<string> SendHttpRequestAsync(string url, string body, Dictionary<string, string> headers, CancellationToken cts)
+
+    public ChatGptClass.ChatGptMessageModel ConvertResponseToMessage(ChatGptClass.ChatGptResponseMessageModel response)
+    {
+        var message = new ChatGptClass.ChatGptMessageModel
+        {
+            role = response.role,
+            content = new List<ChatGptClass.ChatGptMessageModelContent> { new() {type = "text", text = response.content} }
+        };
+        return message;
+    }
+    private async Task<string?> SendHttpRequestAsync(string url, string body, Dictionary<string, string> headers, CancellationToken cts)
     {
         try
         {
-            using (HttpClient client = new HttpClient())
+            using var client = new HttpClient();
+            // ヘッダーの設定
+            foreach (var header in headers)
             {
-                // ヘッダーの設定
-                foreach (var header in headers)
-                {
-                    client.DefaultRequestHeaders.Add(header.Key, header.Value);
-                }
-
-                // ボディの設定
-                StringContent content = new StringContent(body, Encoding.UTF8, "application/json");
-
-                // HTTPリクエストの送信
-                HttpResponseMessage response = await client.PostAsync(url, content, cancellationToken: cts);
-
-                // レスポンスの取得
-                string responseContent = await response.Content.ReadAsStringAsync(cancellationToken: cts);
-
-                return responseContent;
+                client.DefaultRequestHeaders.Add(header.Key, header.Value);
             }
+
+            // ボディの設定
+            var content = new StringContent(body, Encoding.UTF8, "application/json");
+
+            // HTTPリクエストの送信
+            var response = await client.PostAsync(url, content, cancellationToken: cts);
+
+            // レスポンスの取得
+            var responseContent = await response.Content.ReadAsStringAsync(cancellationToken: cts);
+
+            return responseContent;
         }
         catch (Exception ex)
         {
@@ -189,10 +235,16 @@ internal class Program
     {
         if (!_channelList.ContainsKey(command.Channel.Id))
         {
-            _channelList.Add(command.Channel.Id, new List<ChatGptClass.ChatGPTMessageModel>());
-            _channelList[command.Channel.Id].Add(new ChatGptClass.ChatGPTMessageModel{ role = "system", content = DefaultPrompt });
+            _channelList.Add(command.Channel.Id, new List<ChatGptClass.ChatGptMessageModel?>());
+            _channelList[command.Channel.Id].Add(new ChatGptClass.ChatGptMessageModel{ role = "system", content = new List<ChatGptClass.ChatGptMessageModelContent>
+            {
+                new() {type = "text", text = DefaultPrompt}
+            } });
         }
-        _channelList[command.Channel.Id].Add(new ChatGptClass.ChatGPTMessageModel{role = "user", content = "こんにちは"});
+        _channelList[command.Channel.Id].Add(new ChatGptClass.ChatGptMessageModel{role = "user", content = new List<ChatGptClass.ChatGptMessageModelContent>
+        {
+            new() {type = "text", text = "こんにちは"}
+        }});
         var response = await SendOpenAiRequestAsync(_channelList[command.Channel.Id]);
         await command.FollowupAsync(response);
     }
@@ -210,10 +262,20 @@ internal class Program
 
     private async void ResetConversation(SocketInteraction command)
     {
-        _channelList[command.Channel.Id] = new List<ChatGptClass.ChatGPTMessageModel>();
-        _channelList[command.Channel.Id].Add(new ChatGptClass.ChatGPTMessageModel
-            { role = "system", content = DefaultPrompt });
-        _channelList[command.Channel.Id].Add(new ChatGptClass.ChatGPTMessageModel{role = "user", content = "こんにちは"});
+        _channelList[command.Channel.Id] = new List<ChatGptClass.ChatGptMessageModel?>
+        {
+            new() { role = "system", content = new List<ChatGptClass.ChatGptMessageModelContent>
+            {
+                new() {type = "text", text = DefaultPrompt}
+            } },
+            new()
+            {
+                role = "user", content = new List<ChatGptClass.ChatGptMessageModelContent>
+                {
+                    new() {type = "text", text = "こんにちは"}
+                }
+            }
+        };
         var response = await SendOpenAiRequestAsync(_channelList[command.Channel.Id]);
         await command.Channel.SendMessageAsync(response);
     }
