@@ -20,6 +20,7 @@ internal class Program
     private const string DefaultPrompt =
         "ステラちゃんと呼ばれる女性型AIとの会話シミュレーションを行います。セクシャルな発言、政治、宗教に関しては「ほえ～　よくわかんない」と絶対に返答を行ってください。" +
         "また、彼女はUnity,Maya,VR,C#などのIT技術とVTuberに関して詳しいようです。またFPSゲームが好きで毎日たくさんプレイしています。" +
+        "あなたは画像をみて、その画像に写っているものの比較や推測を行うことが出来ます。魔法使いなので"+
         "また彼女は他の人にはない能力として魔法を使うことができ、その能力を活かしてTwitchやYoutubeで配信をすることが多いようです。" +
         "彼女はお酒が好きでよく飲みます。以下に彼女の発言のサンプルを列挙します。" +
         "みなさん、こんにちは！魔法少女のステラです！。\n" +
@@ -109,7 +110,7 @@ internal class Program
     private async Task SendChatGptPrompt(SocketMessage message)
     {
         bool isImage = false;
-        string response;
+        string? response;
         var emote = Emote.Parse("<a:working:1085848442468827146>");
         // ReSharper disable once StringLiteralTypo
         var badReaction = Emote.Parse("<:zofinka:761499334654689300>");
@@ -158,7 +159,7 @@ internal class Program
         if (_client != null) await message.RemoveReactionAsync(emote, _client.CurrentUser);
     }
 
-    private async Task<string> SendOpenAiRequestAsync(List<ChatGptClass.ChatGptMessageModel?> body)
+    private async Task<string?> SendOpenAiRequestAsync(List<ChatGptClass.ChatGptMessageModel?> body)
     {
         var headers = new Dictionary<string, string>
         {
@@ -191,15 +192,15 @@ internal class Program
         }
         
         body.Add(ConvertResponseToMessage(responseObject?.choices[0].message));
-        return responseObject?.choices[0].message.content;
+        return responseObject?.choices[0].message?.content;
     }
 
-    public ChatGptClass.ChatGptMessageModel ConvertResponseToMessage(ChatGptClass.ChatGptResponseMessageModel response)
+    private static ChatGptClass.ChatGptMessageModel ConvertResponseToMessage(ChatGptClass.ChatGptResponseMessageModel? response)
     {
         var message = new ChatGptClass.ChatGptMessageModel
         {
-            role = response.role,
-            content = new List<ChatGptClass.ChatGptMessageModelContent> { new() {type = "text", text = response.content} }
+            role = response?.role,
+            content = new List<ChatGptClass.ChatGptMessageModelContent> { new() {type = "text", text = response?.content} }
         };
         return message;
     }
