@@ -15,7 +15,7 @@ internal class Program
     private string? _tokenDiscord;
     private string? _tokenOpenAi;
     private readonly Dictionary<ulong, Conversation> _channelList = new ();
-    private const string Version = "0.3.0 GPT-4";
+    private const string Version = "0.2.0 GPT-4";
 
     private const string DefaultPrompt =
         "ステラちゃんと呼ばれる女性型AIとの会話シミュレーションを行います。セクシャルな発言、政治、宗教に関しては「ほえ～　よくわかんない」と絶対に返答を行ってください。" +
@@ -169,7 +169,6 @@ internal class Program
     }
     private async Task Client_Ready()
     {
-        
         //resetコマンド
         var  resetCommand = new SlashCommandBuilder();
         resetCommand.WithName("reset");
@@ -194,10 +193,6 @@ internal class Program
         var versionCommand = new SlashCommandBuilder();
         versionCommand.WithName("version");
         versionCommand.WithDescription("Stella-Chanのバージョンを表示します。");
-
-        var joinCommand = new SlashCommandBuilder();
-        joinCommand.WithName("join");
-        joinCommand.WithDescription("Stella-Chanをボイスチャンネルに呼びます。");
         try
         {
             await _client?.CreateGlobalApplicationCommandAsync(resetCommand.Build())!;
@@ -205,7 +200,6 @@ internal class Program
             await _client?.CreateGlobalApplicationCommandAsync(enableCommand.Build())!;
             await _client?.CreateGlobalApplicationCommandAsync(disableCommand.Build())!;
             await _client?.CreateGlobalApplicationCommandAsync(versionCommand.Build())!;
-            await _client?.CreateGlobalApplicationCommandAsync(joinCommand.Build())!;
         }
 #pragma warning disable CS0618
         catch (ApplicationCommandException e)
@@ -248,10 +242,6 @@ internal class Program
                 case "version":
                     await command.RespondAsync(Version);
                     return;
-                case "join":
-                    var voiceChannel = new VoiceChannel();
-                    voiceChannel.JoinChannel(command);
-                    return;
             }
         }
         catch (Exception e)
@@ -259,7 +249,7 @@ internal class Program
             Console.WriteLine($"error:{e.Message}");
         }
     }
-    
+
     private async void DisconnectService(object? sender, EventArgs e)
     {
         //Discord
