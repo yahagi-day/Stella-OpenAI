@@ -249,7 +249,8 @@ internal class Program
                     await command.RespondAsync(Version);
                     return;
                 case "join":
-                    JoinVC();
+                    var voiceChannel = new VoiceChannel();
+                    voiceChannel.JoinChannel(command);
                     return;
             }
         }
@@ -258,11 +259,7 @@ internal class Program
             Console.WriteLine($"error:{e.Message}");
         }
     }
-
-    private async Task JoinVC()
-    {
-        
-    }
+    
     private async void DisconnectService(object? sender, EventArgs e)
     {
         //Discord
