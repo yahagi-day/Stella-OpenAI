@@ -2,20 +2,20 @@
 using Discord.Net;
 using Discord.WebSocket;
 using Newtonsoft.Json;
-using OpenAI_API;
-using OpenAI_API.Chat;
-using OpenAI_API.Models;
+using System.Text;
 
 namespace Stella_OpenAI;
 
 internal class Program
 {
-    private OpenAIAPI? _api;
+    private const string ApiUrl = "https://api.openai.withlogging.com/v1/chat/completions";
     private DiscordSocketClient? _client;
     private string? _tokenDiscord;
     private string? _tokenOpenAi;
-    private readonly Dictionary<ulong, Conversation> _channelList = new ();
-    private const string Version = "0.2.0 GPT-4";
+    private string? _tokenLlmReport;
+    private readonly Dictionary<ulong, List<ChatGptClass.ChatGPTMessageModel?>> _channelList = new ();
+    private readonly List<ulong> _tweetChannelList = new();
+    private const string Version = "0.3.0 GPT-4";
 
     private const string DefaultPrompt =
         "ステラちゃんと呼ばれる女性型AIとの会話シミュレーションを行います。セクシャルな発言、政治、宗教に関しては「ほえ～　よくわかんない」と絶対に返答を行ってください。" +
@@ -53,8 +53,8 @@ internal class Program
         //環境変数からTokenを取得
         _tokenDiscord = Environment.GetEnvironmentVariable("TOKEN_DISCORD");
         _tokenOpenAi = Environment.GetEnvironmentVariable("TOKEN_OPENAI");
+        _tokenLlmReport = Environment.GetEnvironmentVariable("TOKEN_LLMREPORT");
 
-        _api = new OpenAIAPI(new APIAuthentication(_tokenOpenAi));
         _client = new DiscordSocketClient(new DiscordSocketConfig { GatewayIntents = GatewayIntents.All });
         _client.Log += Log;
         _client.Ready += Client_Ready;
@@ -84,20 +84,28 @@ internal class Program
             return;
         if (message.Author.IsBot || message.Author.IsWebhook)
             return;
-        if (!_channelList.ContainsKey(socketMessage.Channel.Id))
-            return;
-
+        //有効なConversationかチェックする
+        if (_channelList.ContainsKey(socketMessage.Channel.Id))
+        {
 #pragma warning disable CS4014
-        Task.Run(() => SendChatGptPrompt(message));
+            Task.Run(() => SendChatGptPrompt(message));
 #pragma warning restore CS4014
+        }
+        //Tweetが含まれているかチェック
+        if (_tweetChannelList.Contains(socketMessage.Channel.Id))
+        {
+            var tweetElement = new TwitterElement();
+            var tweet = await tweetElement.GetTweetFromUriAsync(message.Content, new CancellationToken());
+            if (tweet != null)
+                await message.Channel.SendMessageAsync(tweet.text, messageReference: new MessageReference(message.Id));
+        }
     }
 
     private async Task SendChatGptSystemPrompt(SocketSlashCommand command)
     {
         try
         {
-            _channelList[command.Channel.Id].AppendSystemMessage(command.Data.Options.First().Value.ToString());
-            await _channelList[command.Channel.Id].GetResponseFromChatbotAsync();
+            _channelList[command.Channel.Id].Add(new ChatGptClass.ChatGPTMessageModel{role = "system", content = DefaultPrompt});
             await command.FollowupAsync("更新しました");
         }
         catch (Exception e)
@@ -110,17 +118,19 @@ internal class Program
     private async Task SendChatGptPrompt(SocketMessage message)
     {
         var prompt = message.Content;
-        string response;
+        string? response;
         var emote = Emote.Parse("<a:working:1085848442468827146>");
         // ReSharper disable once StringLiteralTypo
         var badReaction = Emote.Parse("<:zofinka:761499334654689300>");
         await message.AddReactionAsync(emote);
         try
         {
-            _channelList[message.Channel.Id].AppendUserInput(prompt);
-            var cts = new CancellationTokenSource();
-            response = await Task.Run(() => _channelList[message.Channel.Id].GetResponseFromChatbotAsync(),
-                cts.Token);
+            _channelList[message.Channel.Id].Add(new ChatGptClass.ChatGPTMessageModel
+            {
+                role = "user",
+                content = prompt
+            });
+            response = await SendOpenAiRequestAsync(_channelList[message.Channel.Id]);
         }
         catch (Exception)
         {
@@ -133,18 +143,65 @@ internal class Program
         if (_client != null) await message.RemoveReactionAsync(emote, _client.CurrentUser);
     }
 
+    private async Task<string?> SendOpenAiRequestAsync(List<ChatGptClass.ChatGPTMessageModel?> body)
+    {
+        var headers = new Dictionary<string, string>
+        {
+            {"Authorization", "Bearer " + _tokenOpenAi},
+            {"Content-type", "application/json"},
+            {"X-Slack-No-Retry", "1"},
+            {"X-Api-Key", "Bearer " + _tokenLlmReport}
+        };
+        var options = new ChatGptClass.ChatGPTCompletionRequestModel()
+        {
+            model = "gpt-4",
+            messages = body
+        };
+        var jsonOption = JsonConvert.SerializeObject(options);
+        var cts = new CancellationTokenSource();
+        var responseString = await SendHttpRequestAsync(ApiUrl, jsonOption, headers, cts.Token);
+        var responseObject = JsonConvert.DeserializeObject<ChatGptClass.ChatGPTResponseModel>(responseString ?? throw new InvalidOperationException());
+        body.Add(responseObject?.choices[0].message);
+        return responseObject?.choices[0].message.content;
+    }
+
+    private static async Task<string?> SendHttpRequestAsync(string url, string body, Dictionary<string, string> headers, CancellationToken cts)
+    {
+        try
+        {
+            using var client = new HttpClient();
+            // ヘッダーの設定
+            foreach (var header in headers)
+            {
+                client.DefaultRequestHeaders.Add(header.Key, header.Value);
+            }
+
+            // ボディの設定
+            var content = new StringContent(body, Encoding.UTF8, "application/json");
+
+            // HTTPリクエストの送信
+            var response = await client.PostAsync(url, content, cancellationToken: cts);
+
+            // レスポンスの取得
+            var responseContent = await response.Content.ReadAsStringAsync(cancellationToken: cts);
+
+            return responseContent;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("エラーが発生しました：" + ex.Message);
+            return null;
+        }
+    }
     private async void EnableTalkInChannel(SocketInteraction command)
     {
         if (!_channelList.ContainsKey(command.Channel.Id))
         {
-            _channelList.Add(command.Channel.Id, _api?.Chat.CreateConversation(new ChatRequest()
-            {
-                Model = Model.GPT4
-            })!);
-            _channelList[command.Channel.Id].AppendSystemMessage(DefaultPrompt);
+            _channelList.Add(command.Channel.Id, new List<ChatGptClass.ChatGPTMessageModel?>());
+            _channelList[command.Channel.Id].Add(new ChatGptClass.ChatGPTMessageModel{ role = "system", content = DefaultPrompt });
         }
-        _channelList[command.Channel.Id].AppendUserInput("こんにちは");
-        var response = await _channelList[command.Channel.Id].GetResponseFromChatbotAsync();
+        _channelList[command.Channel.Id].Add(new ChatGptClass.ChatGPTMessageModel{role = "user", content = "こんにちは"});
+        var response = await SendOpenAiRequestAsync(_channelList[command.Channel.Id]);
         await command.FollowupAsync(response);
     }
 
@@ -161,10 +218,12 @@ internal class Program
 
     private async void ResetConversation(SocketInteraction command)
     {
-        _channelList[command.Channel.Id] = _api?.Chat.CreateConversation()!;
-        _channelList[command.Channel.Id].AppendSystemMessage(DefaultPrompt);
-        _channelList[command.Channel.Id].AppendUserInput("こんにちは");
-        var response = await _channelList[command.Channel.Id].GetResponseFromChatbotAsync();
+        _channelList[command.Channel.Id] = new List<ChatGptClass.ChatGPTMessageModel?>
+        {
+            new() { role = "system", content = DefaultPrompt },
+            new() { role = "user", content = "こんにちは"}
+        };
+        var response = await SendOpenAiRequestAsync(_channelList[command.Channel.Id]);
         await command.Channel.SendMessageAsync(response);
     }
     private async Task Client_Ready()
@@ -179,7 +238,7 @@ internal class Program
         systemCommand.WithName("system");
         systemCommand.WithDescription("System側のpromptを出します")
             .AddOption("prompt", ApplicationCommandOptionType.String, "ここにプロンプトを入力！", true);
-        
+
         //enableCommand
         var enableCommand = new SlashCommandBuilder();
         enableCommand.WithName("enable");
@@ -189,6 +248,15 @@ internal class Program
         var disableCommand = new SlashCommandBuilder();
         disableCommand.WithName("disable");
         disableCommand.WithDescription("このチャンネルのStella-Chanが居なくなります");
+
+        //TweetEnable
+        var tweetEnable = new SlashCommandBuilder();
+        tweetEnable.WithName("Tweet Enable");
+        tweetEnable.WithDescription("TwitterのURLを投稿したときにステラちゃんが読みやすくしてくれます。");
+
+        var tweetDisable = new SlashCommandBuilder();
+        tweetDisable.WithName("Tweet Disable");
+        tweetDisable.WithDescription("ステラちゃんがTwitterを使うのをやめます。");
 
         var versionCommand = new SlashCommandBuilder();
         versionCommand.WithName("version");
@@ -200,6 +268,8 @@ internal class Program
             await _client?.CreateGlobalApplicationCommandAsync(enableCommand.Build())!;
             await _client?.CreateGlobalApplicationCommandAsync(disableCommand.Build())!;
             await _client?.CreateGlobalApplicationCommandAsync(versionCommand.Build())!;
+            await _client?.CreateGlobalApplicationCommandAsync(tweetEnable.Build())!;
+            await _client?.CreateGlobalApplicationCommandAsync(tweetDisable.Build())!;
         }
 #pragma warning disable CS0618
         catch (ApplicationCommandException e)
@@ -242,6 +312,15 @@ internal class Program
                 case "version":
                     await command.RespondAsync(Version);
                     return;
+                case "Tweet Enable":
+                    if(!_tweetChannelList.Contains(command.Channel.Id))
+                        _tweetChannelList.Add(command.Channel.Id);
+                    await command.RespondAsync("ステラちゃんがツイートを見せてくれるよ！");
+                    break;
+                case "Tweet Disable":
+                    if (_tweetChannelList.Contains(command.Channel.Id))
+                        _tweetChannelList.RemoveAll(value => value == command.Channel.Id);
+                    break;
             }
         }
         catch (Exception e)

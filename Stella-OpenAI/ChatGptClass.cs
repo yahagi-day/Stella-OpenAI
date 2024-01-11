@@ -1,64 +1,41 @@
-// ReSharper disable InconsistentNaming
-// ReSharper disable UnassignedField.Global
 namespace Stella_OpenAI;
 
 public abstract class ChatGptClass
 {
     [Serializable]
-    public class ChatGptResponseMessageModel
+    public class ChatGPTMessageModel
     {
-        public string? role;
+        public string role;
         public string? content;
     }
-    
-    public class ChatGptMessageModel
-    {
-        public string? role;
-        public List<ChatGptMessageModelContent> content = null!;
-    }
 
-    [Serializable]
-    public class ChatGptMessageModelContent
-    {
-        public string? type;
-        public string? text;
-        public string? image_url;
-    }
 //ChatGPT APIにRequestを送るためのJSON用クラス
     [Serializable]
-    public class ChatGptCompletionRequestModel
+    public class ChatGPTCompletionRequestModel
     {
-        public string? model;
-        public List<ChatGptMessageModel?>? messages;
-        public int max_tokens;
+        public string model;
+        public List<ChatGPTMessageModel?> messages;
     }
 
 //ChatGPT APIからのResponseを受け取るためのクラス
-    [Serializable]
-    public class ChatGptResponseModel
+    [System.Serializable]
+    public class ChatGPTResponseModel
     {
-        public string? id;
-        public string? @object;
+        public string id;
+        public string @object;
         public int created;
-        public string? model;
-        public Usage? usage;
-        public Choice[]? choices;
+        public Choice[] choices;
+        public Usage usage;
 
-        [Serializable]
+        [System.Serializable]
         public class Choice
         {
-            public ChatGptResponseMessageModel? message;
-            public FinishDetails? finish_details;
             public int index;
+            public ChatGPTMessageModel message;
+            public string finish_reason;
         }
 
-        [Serializable]
-        public class FinishDetails
-        {
-            public string? type;
-            public string? stop;
-        }
-        [Serializable]
+        [System.Serializable]
         public class Usage
         {
             public int prompt_tokens;
