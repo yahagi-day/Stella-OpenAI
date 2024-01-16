@@ -31,6 +31,7 @@ jobs:
         sudo apt-get update && sudo apt-get install cloudflared
         mkdir -p "~/.ssh"
         echo -e "Host $HOST\n  ProxyCommand /usr/local/bin/cloudflared access ssh --hostname %h" >> "~/.ssh/config"
+        systemctl restart sshd
     - name: Deploy to DigitalOcean
       env:
         PRIVATE_KEY: ${{ secrets.DEPLOY_PRIVATE_KEY }}
