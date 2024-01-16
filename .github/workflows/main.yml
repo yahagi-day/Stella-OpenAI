@@ -21,7 +21,15 @@ jobs:
       run: |
         dotnet build --configuration Release
         dotnet publish --configuration Release --output ./publish
-      
+    - name: Setup Cloudflared
+      env:
+        HOST: ${{ secrets.IPADDRESS }}
+      run: |
+        sudo mkdir -p --mode=0755 /usr/share/keyrings
+        curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg | sudo tee /usr/share/keyrings/cloudflare-main.gpg >/dev/null
+        echo 'deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared buster main' | sudo tee /etc/apt/sources.list.d/cloudflared.list
+        sudo apt-get update && sudo apt-get install cloudflared
+        echo -e "Host $HOST\n  ProxyCommand /usr/local/bin/cloudflared access ssh --hostname %h" >> ~/.ssh/config
     - name: Deploy to DigitalOcean
       env:
         PRIVATE_KEY: ${{ secrets.DEPLOY_PRIVATE_KEY }}
