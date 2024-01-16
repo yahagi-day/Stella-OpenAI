@@ -41,6 +41,6 @@ jobs:
       run: |
         echo "$PRIVATE_KEY" > private_key.pem
         chmod 600 private_key.pem
-        rsync -avzr -e 'ssh -i private_key.pem -o StrictHostKeyChecking=no' --delete ./publish/ $USER@$HOST:$APP_DIR
-        ssh -i private_key.pem -o StrictHostKeyChecking=no $USER@$HOST "cd $APP_DIR && sudo systemctl restart stella-openai"
+        rsync -avzr -e 'ssh -o ProxyCommand="/usr/local/bin/cloudflared access ssh --hostname %h" -i private_key.pem -o StrictHostKeyChecking=no' --delete ./publish/ $USER@$HOST:$APP_DIR
+        ssh -i private_key.pem -o ProxyCommand="/usr/local/bin/cloudflared access ssh --hostname %h" -o StrictHostKeyChecking=no $USER@$HOST "cd $APP_DIR && sudo systemctl restart stella-openai"
         rm -f private_key.pem
