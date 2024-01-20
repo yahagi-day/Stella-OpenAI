@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using Discord;
 using Newtonsoft.Json;
+// ReSharper disable InconsistentNaming
 
 namespace Stella_OpenAI;
 
@@ -98,30 +99,4 @@ public class TwitterElement
         }
 
     }
-}
-
-public class TweetResponse
-{
-    public List<Tweet> Data { get; set; }
-}
-
-public class Tweet
-{
-    public List<string> EdiHistoryTweetIds { get; set; }
-    public string Id { get; set; }
-    public string Author_Id { get; set; }
-    public string Text { get; set; }
-}
-
-public class UserResponse
-{
-    public User Data { get; set; }
-}
-
-public class User
-{
-    public string Id { get; set; }
-    public string Name { get; set; }
-    public string Username { get; set; }
-    public string Profile_image_url { get; set; }
 }
