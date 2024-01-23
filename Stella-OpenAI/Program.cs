@@ -16,8 +16,7 @@ internal class Program
     private string? _tokenDiscord;
     private string? _tokenOpenAi;
     private readonly Dictionary<ulong, Conversation> _channelList = new ();
-    private readonly List<ulong> _tweetChannelList = new();
-    private const string Version = "0.5.0 GPT-4";
+    private const string Version = "0.6.0 GPT-4";
 
     private const string DefaultPrompt =
         "ステラちゃんと呼ばれる女性型AIとの会話シミュレーションを行います。セクシャルな発言、政治、宗教に関しては「ほえ～　よくわかんない」と絶対に返答を行ってください。" +
@@ -59,13 +58,11 @@ internal class Program
             {
                 _tokenDiscord = Environment.GetEnvironmentVariable("TOKEN_DISCORD", EnvironmentVariableTarget.User);
                 _tokenOpenAi = Environment.GetEnvironmentVariable("TOKEN_OPENAI", EnvironmentVariableTarget.User);
-                TwitterElement.BearToken= Environment.GetEnvironmentVariable("TOKEN_TWITTER", EnvironmentVariableTarget.User);
             }
             else
             {
                 _tokenDiscord = Environment.GetEnvironmentVariable("TOKEN_DISCORD");
                 _tokenOpenAi = Environment.GetEnvironmentVariable("TOKEN_OPENAI");
-                TwitterElement.BearToken= Environment.GetEnvironmentVariable("TOKEN_TWITTER");
             }
         }
         catch (Exception e)
@@ -110,18 +107,6 @@ internal class Program
 #pragma warning disable CS4014
             Task.Run(() => SendChatGptPrompt(message));
 #pragma warning restore CS4014
-        }
-        //Tweetが含まれているかチェック
-        if (_tweetChannelList.Contains(socketMessage.Channel.Id))
-        {
-            var tweetElement = new TwitterElement();
-            var tweet = await tweetElement.GetTweetFromUriAsync(message.Content, new CancellationToken());
-            if (tweet != null)
-            {
-                var embed = await tweetElement.CreateTweetEmbed(tweet, new CancellationToken());
-                await message.Channel.SendMessageAsync(embed: embed, messageReference: new MessageReference(message.Id));
-            }
-
         }
     }
     private async Task SendChatGptSystemPrompt(SocketSlashCommand command)
@@ -221,28 +206,24 @@ internal class Program
         var disableCommand = new SlashCommandBuilder();
         disableCommand.WithName("disable");
         disableCommand.WithDescription("このチャンネルのStella-Chanが居なくなります");
-        //TweetEnable
-        var tweetEnable = new SlashCommandBuilder();
-        tweetEnable.WithName("tweet-enable");
-        tweetEnable.WithDescription("TwitterのURLを投稿したときにステラちゃんが読みやすくしてくれます。");
 
-        var tweetDisable = new SlashCommandBuilder();
-        tweetDisable.WithName("tweet-disable");
-        tweetDisable.WithDescription("ステラちゃんがTwitterを使うのをやめます。");
-        
+        //Palworld
+        var palworldCommand = new SlashCommandBuilder();
+        palworldCommand.WithName("palworld");
+        palworldCommand.WithDescription("Palwordのサーバーについての情報を表示します");
 
         var versionCommand = new SlashCommandBuilder();
         versionCommand.WithName("version");
         versionCommand.WithDescription("Stella-Chanのバージョンを表示します。");
+
         try
         {
             await _client?.CreateGlobalApplicationCommandAsync(resetCommand.Build())!;
             await _client?.CreateGlobalApplicationCommandAsync(systemCommand.Build())!;
             await _client?.CreateGlobalApplicationCommandAsync(enableCommand.Build())!;
             await _client?.CreateGlobalApplicationCommandAsync(disableCommand.Build())!;
+            await _client?.CreateGlobalApplicationCommandAsync(palworldCommand.Build())!;
             await _client?.CreateGlobalApplicationCommandAsync(versionCommand.Build())!;
-            await _client?.CreateGlobalApplicationCommandAsync(tweetEnable.Build())!;
-            await _client?.CreateGlobalApplicationCommandAsync(tweetDisable.Build())!;
         }
 #pragma warning disable CS0618
         catch (ApplicationCommandException e)
@@ -282,18 +263,14 @@ internal class Program
                     await command.DeferAsync();
                     DisableTalkInChannel(command);
                     return;
+                case "palworld":
+                    await command.DeferAsync();
+                    var embed = await Palworld.CreateServerStatusEmbedAsync();
+                    await command.FollowupAsync(embed: embed);
+                    return;
                 case "version":
                     await command.RespondAsync(Version);
                     return;
-                case "tweet-enable":
-                    if(!_tweetChannelList.Contains(command.Channel.Id))
-                        _tweetChannelList.Add(command.Channel.Id);
-                    await command.RespondAsync("ステラちゃんがツイートを見せてくれるよ！");
-                    break;
-                case "tweet-disable":
-                    if (_tweetChannelList.Contains(command.Channel.Id))
-                        _tweetChannelList.RemoveAll(value => value == command.Channel.Id);
-                    break;
             }
         }
         catch (Exception e)
