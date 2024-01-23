@@ -1,3 +1,4 @@
+using System.Text.Unicode;
 using Discord;
 
 namespace Stella_OpenAI;
@@ -41,6 +42,28 @@ public static class Palworld
         try
         {
             await tcpClient.ConnectAsync(hostname, port, cancellationToken: cancellationToken);
+            var ns = tcpClient.GetStream();
+            ns.ReadTimeout = 10000;
+            ns.WriteTimeout = 10000;
+            var enc = System.Text.Encoding.UTF8;
+            var ms = new MemoryStream();
+            var resBytes = new byte[256];
+            var resSize = 0;
+            do
+            {
+                resSize = await ns.ReadAsync(resBytes.AsMemory(0, resSize), cancellationToken);
+                if (resSize == 0)
+                {
+                    Console.WriteLine("Disconnect");
+                    break;
+                }
+                await ms.WriteAsync(resBytes.AsMemory(0, resSize), cancellationToken);
+
+            }while (ns.DataAvailable || resBytes[resSize - 1] != '\n') ;
+            var resMsg = enc.GetString(ms.GetBuffer(), 0, (int)ms.Length);
+            ms.Close();
+            resMsg = resMsg.TrimEnd('\n');
+            Console.WriteLine(resMsg);
             return tcpClient.Connected;
         }
         catch (Exception e)
