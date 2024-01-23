@@ -265,8 +265,9 @@ internal class Program
                     return;
                 case "palworld":
                     await command.DeferAsync();
-                    var embed = await Palworld.CreateServerStatusEmbedAsync();
-                    await command.FollowupAsync(embed: embed);
+#pragma warning disable CS4014 // この呼び出しは待機されなかったため、現在のメソッドの実行は呼び出しの完了を待たずに続行されます
+                    Palworld.SendPalworldEmbedAsync(command);
+#pragma warning restore CS4014 // この呼び出しは待機されなかったため、現在のメソッドの実行は呼び出しの完了を待たずに続行されます
                     return;
                 case "version":
                     await command.RespondAsync(Version);

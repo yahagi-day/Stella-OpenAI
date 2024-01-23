@@ -1,4 +1,7 @@
+using System.Net;
+using System.Text;
 using Discord;
+using Discord.WebSocket;
 
 namespace Stella_OpenAI;
 using System.Net.Sockets;
@@ -9,7 +12,13 @@ public static class Palworld
     private const int Port = 8211;
     private const string ServerName = "Stella-Pal-Server";
     private const string ThumbNaileUrl = "https://stella-bucket.sgp1.cdn.digitaloceanspaces.com/DypaJmjI_400x400.jpg";
-    public static async Task<Embed> CreateServerStatusEmbedAsync(CancellationToken cancellationToken = default)
+
+    public static async Task SendPalworldEmbedAsync(SocketSlashCommand command)
+    {
+        var embed = await CreateServerStatusEmbedAsync();
+        await command.FollowupAsync(embed: embed);
+    }
+    private static async Task<Embed> CreateServerStatusEmbedAsync(CancellationToken cancellationToken = default)
     {
         //サーバーのステータス確認
         var status = await ServerConnectionCheckAsync(HostName, Port, cancellationToken: cancellationToken);
@@ -32,20 +41,19 @@ public static class Palworld
         return embed.Build();
     }
 
-    public static async Task<bool> ServerConnectionCheckAsync(string hostname, int port, CancellationToken cancellationToken = default)
+    private static async Task<bool> ServerConnectionCheckAsync(string hostname, int port, CancellationToken cancellationToken = default)
     {
-        using var tcpClient = new TcpClient();
-        tcpClient.SendTimeout = 1000;
-        tcpClient.ReceiveTimeout = 1000;
-        // ReSharper disable once MethodHasAsyncOverload
         try
         {
-            await tcpClient.ConnectAsync(hostname, port, cancellationToken: cancellationToken);
-            return tcpClient.Connected;
+            using var udpClient = new UdpClient();
+            udpClient.Connect(hostname, port);
+            var sendData = "Hello Palworld"u8.ToArray();
+            await udpClient.SendAsync(sendData, sendData.Length);
+            await udpClient.ReceiveAsync(cancellationToken);
+            return true;
         }
-        catch (Exception e)
+        catch(Exception)
         {
-            Console.WriteLine(e);
             return false;
         }
 
