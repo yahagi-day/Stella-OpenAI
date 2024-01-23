@@ -8,7 +8,7 @@ public static class Palworld
     private const string HostName = "palworld.magical-project.com";
     private const int Port = 8211;
     private const string ServerName = "Stella-Pal-Server";
-    private const string ThumbNaileUrl = "https://stella-bucket.sgp1.cdn.digitaloceanspaces.com/palworld-icon.webp";
+    private const string ThumbNaileUrl = "https://stella-bucket.sgp1.cdn.digitaloceanspaces.com/DypaJmjI_400x400.jpg";
     public static async Task<Embed> CreateServerStatusEmbedAsync(CancellationToken cancellationToken = default)
     {
         //サーバーのステータス確認
