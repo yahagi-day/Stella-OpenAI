@@ -32,7 +32,9 @@ public class VoiceChannel
         _audioClients.Add(new ChannelInfo{GuildId = channel.GuildId, ChannelId = channel.Id}, audioClient);
         await Task.Delay(TimeSpan.FromSeconds(10));
         Console.WriteLine("再生開始");
+#pragma warning disable CS4014 // この呼び出しは待機されなかったため、現在のメソッドの実行は呼び出しの完了を待たずに続行されます
         SendAsync(audioClient, "test.mp3");
+#pragma warning restore CS4014 // この呼び出しは待機されなかったため、現在のメソッドの実行は呼び出しの完了を待たずに続行されます
     }
 
     private Process? CreateStream(string path)
@@ -58,13 +60,15 @@ public class VoiceChannel
     private async Task SendAsync(IAudioClient client, string path)
     {
         using (var ffmpeg = CreateStream(path))
-        using (var output = ffmpeg.StandardOutput.BaseStream)
+        using (var output = ffmpeg?.StandardOutput.BaseStream)
         using (var discord = client.CreatePCMStream(AudioApplication.Mixed))
         {
             try
             {
                 await client.SetSpeakingAsync(true);//just try to fix
-                await output.CopyToAsync(discord);//_token to stop sending audio
+#pragma warning disable CS8602 // null 参照の可能性があるものの逆参照です。
+                await output?.CopyToAsync(discord);//_token to stop sending audio
+#pragma warning restore CS8602 // null 参照の可能性があるものの逆参照です。
             }
             catch (OperationCanceledException)
             {
