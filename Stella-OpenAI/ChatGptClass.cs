@@ -154,6 +154,5 @@ internal class ChatGptClass
         var bytes = Convert.FromBase64String(result.Data[0].Base64Data);
         var file = new List<FileAttachment> { new(new MemoryStream(bytes), "image.png") };
         await modal.FollowupWithFilesAsync(file, text: prompt);
-        await modal.FollowupAsync(result.Data[0].Url);
     }
 }
