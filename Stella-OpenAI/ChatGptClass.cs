@@ -1,20 +1,18 @@
 using Discord.WebSocket;
 using Discord;
-using Discord.Interactions;
 using OpenAI_API.Chat;
 using OpenAI_API.Models;
 using OpenAI_API;
 using OpenAI_API.Images;
 using System.Runtime.InteropServices;
-using System.Reflection;
 
 namespace Stella_OpenAI;
 
 internal class ChatGptClass
 {
-    private OpenAIAPI _api = new OpenAIAPI();
-    private DiscordSocketClient _client;
-    internal readonly Dictionary<ulong, Conversation> _channelList = new();
+    private readonly OpenAIAPI _api;
+    private readonly DiscordSocketClient _client;
+    internal readonly Dictionary<ulong, Conversation> ChannelList = new();
     private const string DefaultPrompt =
         "ステラちゃんと呼ばれる女性型AIとの会話シミュレーションを行います。セクシャルな発言、政治、宗教に関しては「ほえ～　よくわかんない」と絶対に返答を行ってください。" +
         "また、彼女はUnity,Maya,VR,C#などのIT技術とVTuberに関して詳しいようです。またFPSゲームが好きで毎日たくさんプレイしています。" +
@@ -46,15 +44,7 @@ internal class ChatGptClass
         //環境変数からTokenを取得
         try
         {
-
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                tokenOpenAi = Environment.GetEnvironmentVariable("TOKEN_OPENAI", EnvironmentVariableTarget.User);
-            }
-            else
-            {
-                tokenOpenAi = Environment.GetEnvironmentVariable("TOKEN_OPENAI");
-            }
+            tokenOpenAi = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? Environment.GetEnvironmentVariable("TOKEN_OPENAI", EnvironmentVariableTarget.User) : Environment.GetEnvironmentVariable("TOKEN_OPENAI");
         }
         catch (Exception e)
         {
@@ -69,8 +59,8 @@ internal class ChatGptClass
     {
         try
         {
-            _channelList[command.Channel.Id].AppendSystemMessage(command.Data.Options.First().Value.ToString());
-            await _channelList[command.Channel.Id].GetResponseFromChatbotAsync();
+            ChannelList[command.Channel.Id].AppendSystemMessage(command.Data.Options.First().Value.ToString());
+            await ChannelList[command.Channel.Id].GetResponseFromChatbotAsync();
             await command.FollowupAsync("更新しました");
         }
         catch (Exception e)
@@ -90,54 +80,54 @@ internal class ChatGptClass
         await message.AddReactionAsync(emote);
         try
         {
-            _channelList[message.Channel.Id].AppendUserInput(prompt);
+            ChannelList[message.Channel.Id].AppendUserInput(prompt);
             var cts = new CancellationTokenSource();
-            response = await Task.Run(() => _channelList[message.Channel.Id].GetResponseFromChatbotAsync(),
+            response = await Task.Run(() => ChannelList[message.Channel.Id].GetResponseFromChatbotAsync(),
                 cts.Token);
         }
         catch (Exception)
         {
-            await message.RemoveReactionAsync(emote, client?.CurrentUser);
+            await message.RemoveReactionAsync(emote, client.CurrentUser);
             await message.AddReactionAsync(badReaction);
             return;
         }
 
         await message.Channel.SendMessageAsync(response, messageReference: new MessageReference(message.Id));
-        if (client != null) await message.RemoveReactionAsync(emote, client.CurrentUser);
+        await message.RemoveReactionAsync(emote, client.CurrentUser);
     }
 
     internal async void EnableTalkInChannel(SocketInteraction command)
     {
-        if (!_channelList.ContainsKey(command.Channel.Id))
+        if (!ChannelList.ContainsKey(command.Channel.Id))
         {
-            _channelList.Add(command.Channel.Id, _api.Chat.CreateConversation(new ChatRequest()
+            ChannelList.Add(command.Channel.Id, _api.Chat.CreateConversation(new ChatRequest()
             {
                 Model = Model.GPT4
             })!);
-            _channelList[command.Channel.Id].AppendSystemMessage(DefaultPrompt);
+            ChannelList[command.Channel.Id].AppendSystemMessage(DefaultPrompt);
         }
-        _channelList[command.Channel.Id].AppendUserInput("こんにちは");
-        var response = await _channelList[command.Channel.Id].GetResponseFromChatbotAsync();
+        ChannelList[command.Channel.Id].AppendUserInput("こんにちは");
+        var response = await ChannelList[command.Channel.Id].GetResponseFromChatbotAsync();
         await command.FollowupAsync(response);
     }
 
     internal async void DisableTalkInChannel(SocketInteraction command)
     {
-        if (!_channelList.ContainsKey(command.Channel.Id))
+        if (!ChannelList.ContainsKey(command.Channel.Id))
         {
             await command.FollowupAsync("このチャンネルにStella-Chanは居なかったみたいです。");
             return;
         }
-        _channelList.Remove(command.Channel.Id);
+        ChannelList.Remove(command.Channel.Id);
         await command.FollowupAsync("Stella-Chanは立ち去りました。");
     }
 
     internal async void ResetConversation(SocketInteraction command)
     {
-        _channelList[command.Channel.Id] = _api.Chat.CreateConversation()!;
-        _channelList[command.Channel.Id].AppendSystemMessage(DefaultPrompt);
-        _channelList[command.Channel.Id].AppendUserInput("こんにちは");
-        var response = await _channelList[command.Channel.Id].GetResponseFromChatbotAsync();
+        ChannelList[command.Channel.Id] = _api.Chat.CreateConversation()!;
+        ChannelList[command.Channel.Id].AppendSystemMessage(DefaultPrompt);
+        ChannelList[command.Channel.Id].AppendUserInput("こんにちは");
+        var response = await ChannelList[command.Channel.Id].GetResponseFromChatbotAsync();
         await command.Channel.SendMessageAsync(response);
     }
 
@@ -152,14 +142,18 @@ internal class ChatGptClass
     }
 
     //[ModalInteraction("create-image")]
-    public async Task CreateImageModalResponse(SocketModal modal)
+    private async Task CreateImageModalResponse(SocketModal modal)
     {
         if (modal.Data.CustomId != "create-image") return;
 
         await modal.DeferAsync();
         var components = modal.Data.Components.ToList();
-        string prompt = components.First(x => x.CustomId == "Prompt").Value;
-        var result = await _api.ImageGenerations.CreateImageAsync(new ImageGenerationRequest(prompt, Model.DALLE3, ImageSize._1024));
+        var prompt = components.First(x => x.CustomId == "Prompt").Value;
+        var result = await _api.ImageGenerations.CreateImageAsync(new ImageGenerationRequest(prompt, Model.DALLE3, ImageSize._1024, responseFormat: ImageResponseFormat.B64_json));
+        //base64 imageを画像にする
+        var bytes = Convert.FromBase64String(result.Data[0].Base64Data);
+        var file = new List<FileAttachment> { new(new MemoryStream(bytes), "image.png") };
+        await modal.FollowupWithFilesAsync(file, text: prompt);
         await modal.FollowupAsync(result.Data[0].Url);
     }
 }

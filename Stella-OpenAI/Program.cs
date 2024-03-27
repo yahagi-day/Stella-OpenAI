@@ -4,7 +4,6 @@ using Discord.Interactions;
 using Discord.Net;
 using Discord.WebSocket;
 using Newtonsoft.Json;
-using OpenAI_API;
 namespace Stella_OpenAI;
 
 internal class Program : InteractionModuleBase
@@ -12,8 +11,6 @@ internal class Program : InteractionModuleBase
     private DiscordSocketClient _client = new DiscordSocketClient();
     private ChatGptClass? _chatGptClass;
     private string? _tokenDiscord;
-    private string? _tokenOpenAi;
-    
     private const string Version = "0.7.0 GPT-4";
 
     public static Task Main(string[] _)
@@ -26,16 +23,7 @@ internal class Program : InteractionModuleBase
         //環境変数からTokenを取得
         try
         {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                _tokenDiscord = Environment.GetEnvironmentVariable("TOKEN_DISCORD", EnvironmentVariableTarget.User);
-                _tokenOpenAi = Environment.GetEnvironmentVariable("TOKEN_OPENAI", EnvironmentVariableTarget.User);
-            }
-            else
-            {
-                _tokenDiscord = Environment.GetEnvironmentVariable("TOKEN_DISCORD");
-                _tokenOpenAi = Environment.GetEnvironmentVariable("TOKEN_OPENAI");
-            }
+            _tokenDiscord = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? Environment.GetEnvironmentVariable("TOKEN_DISCORD", EnvironmentVariableTarget.User) : Environment.GetEnvironmentVariable("TOKEN_DISCORD");
         }
         catch (Exception e)
         {
@@ -77,7 +65,7 @@ internal class Program : InteractionModuleBase
             return;
         //有効なConversationかチェックする
 #pragma warning disable CS8602 // null 参照の可能性があるものの逆参照です。
-        if (_chatGptClass._channelList.ContainsKey(socketMessage.Channel.Id))
+        if (_chatGptClass.ChannelList.ContainsKey(socketMessage.Channel.Id))
         {
 #pragma warning disable CS4014
             Task.Run(() => _chatGptClass?.SendChatGptPrompt(message, _client));
@@ -118,12 +106,12 @@ internal class Program : InteractionModuleBase
 
         try
         {
-            await _client?.CreateGlobalApplicationCommandAsync(createImage.Build())!;
-            await _client?.CreateGlobalApplicationCommandAsync(resetCommand.Build())!;
-            await _client?.CreateGlobalApplicationCommandAsync(systemCommand.Build())!;
-            await _client?.CreateGlobalApplicationCommandAsync(enableCommand.Build())!;
-            await _client?.CreateGlobalApplicationCommandAsync(disableCommand.Build())!;
-            await _client?.CreateGlobalApplicationCommandAsync(versionCommand.Build())!;
+            await _client.CreateGlobalApplicationCommandAsync(createImage.Build())!;
+            await _client.CreateGlobalApplicationCommandAsync(resetCommand.Build())!;
+            await _client.CreateGlobalApplicationCommandAsync(systemCommand.Build())!;
+            await _client.CreateGlobalApplicationCommandAsync(enableCommand.Build())!;
+            await _client.CreateGlobalApplicationCommandAsync(disableCommand.Build())!;
+            await _client.CreateGlobalApplicationCommandAsync(versionCommand.Build())!;
         }
 #pragma warning disable CS0618
         catch (ApplicationCommandException e)
@@ -177,8 +165,8 @@ internal class Program : InteractionModuleBase
     private async void DisconnectService(object? sender, EventArgs e)
     {
         //Discord
-        await _client?.StopAsync()!;
-        await _client?.LogoutAsync()!;
+        await _client.StopAsync()!;
+        await _client.LogoutAsync()!;
         _client.Log -= Log;
         _client.MessageReceived -= CommandReceived;
         _client.SlashCommandExecuted -= SlashCommandHandler;
