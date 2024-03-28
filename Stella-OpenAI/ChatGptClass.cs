@@ -149,10 +149,18 @@ internal class ChatGptClass
         await modal.DeferAsync();
         var components = modal.Data.Components.ToList();
         var prompt = components.First(x => x.CustomId == "Prompt").Value;
-        var result = await _api.ImageGenerations.CreateImageAsync(new ImageGenerationRequest(prompt, Model.DALLE3, ImageSize._1024, responseFormat: ImageResponseFormat.B64_json));
-        //base64 imageを画像にする
-        var bytes = Convert.FromBase64String(result.Data[0].Base64Data);
-        var file = new List<FileAttachment> { new(new MemoryStream(bytes), "image.png") };
-        await modal.FollowupWithFilesAsync(file, text: prompt);
+        try
+        {
+            var result = await _api.ImageGenerations.CreateImageAsync(new ImageGenerationRequest(prompt, Model.DALLE3,
+                ImageSize._1024, responseFormat: ImageResponseFormat.B64_json));
+            //base64 imageを画像にする
+            var bytes = Convert.FromBase64String(result.Data[0].Base64Data);
+            var file = new List<FileAttachment> { new(new MemoryStream(bytes), $"image_{prompt}.webp") };
+            await modal.FollowupWithFilesAsync(file, text: prompt);
+        }
+        catch (Exception e)
+        {
+            await modal.FollowupAsync("ふわ～>< よくわかんないや…");
+        }
     }
 }
