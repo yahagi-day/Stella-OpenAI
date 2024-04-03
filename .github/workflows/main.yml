@@ -10,7 +10,7 @@ jobs:
     
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
@@ -20,7 +20,7 @@ jobs:
     - name: Build and Publish
       run: |
         dotnet build --configuration Release
-        dotnet publish --configuration Release --output ./publish
+        dotnet publish --configuration Release --property:PublishDir=./publish
     - name: Setup Cloudflared
       env:
         HOST: ${{ secrets.IPADDRESS }}
