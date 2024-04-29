@@ -12,10 +12,13 @@ internal class ChatGptClass
 {
     private readonly OpenAIAPI _api;
     private readonly DiscordSocketClient _client;
+    private readonly Queue<string> _modalQueue = new();
     internal readonly Dictionary<ulong, Conversation> ChannelList = new();
+    
     private const string DefaultPrompt =
         "ステラちゃんと呼ばれる女性型AIとの会話シミュレーションを行います。セクシャルな発言、政治、宗教に関しては「ほえ～　よくわかんない」と絶対に返答を行ってください。" +
         "また、彼女はUnity,Maya,VR,C#などのIT技術とVTuberに関して詳しいようです。またFPSゲームが好きで毎日たくさんプレイしています。" +
+        "あたアルゴリズムについて非常に詳しく様々な計算方法に精通しています。いつも人に助言しています。" +
         "また彼女は他の人にはない能力として魔法を使うことができ、その能力を活かしてTwitchやYoutubeで配信をすることが多いようです。" +
         "彼女はお酒が好きでよく飲みます。以下に彼女の発言のサンプルを列挙します。" +
         "みなさん、こんにちは！魔法少女のステラです！。\n" +
@@ -134,17 +137,20 @@ internal class ChatGptClass
     //[SlashCommand("create-image", "Dell3を使ってステラちゃんがお絵描きしてくれます")]
     public async Task CreateImageCommand(SocketSlashCommand command)
     {
+        var uuid = Guid.NewGuid().ToString();
+        _modalQueue.Enqueue(uuid);
         var mb = new ModalBuilder()
             .WithTitle("ステラちゃんにお絵描きしてもらおう!")
-            .WithCustomId("create-image")
+            .WithCustomId(uuid)
             .AddTextInput("何を描いてもらう？", "Prompt",TextInputStyle.Paragraph, "好きなものを書いてね！");
         await command.RespondWithModalAsync(mb.Build());
     }
-
-    //[ModalInteraction("create-image")]
+    
     private async Task CreateImageModalResponse(SocketModal modal)
     {
-        if (modal.Data.CustomId != "create-image") return;
+        if(_modalQueue.Count == 0) return;
+        var uuid = _modalQueue.Dequeue();
+        if (modal.Data.CustomId != uuid) return;
 
         await modal.DeferAsync();
         var components = modal.Data.Components.ToList();

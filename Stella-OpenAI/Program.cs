@@ -11,7 +11,7 @@ internal class Program : InteractionModuleBase
     private DiscordSocketClient _client = new ();
     private ChatGptClass? _chatGptClass;
     private string? _tokenDiscord;
-    private const string Version = "0.7.2 GPT-4";
+    private const string Version = "0.7.3 GPT-4";
 
     public static Task Main(string[] _)
     {
@@ -75,6 +75,7 @@ internal class Program : InteractionModuleBase
     }
     private async Task Client_Ready()
     {
+        /*
         //create-image
         var createImage = new SlashCommandBuilder();
         createImage.WithName("create-image");
@@ -120,6 +121,7 @@ internal class Program : InteractionModuleBase
             var json = JsonConvert.SerializeObject(e.Errors, Formatting.Indented);
             Console.WriteLine($"Client_Ready{json}");
         }
+        */
     }
 
     private async Task SlashCommandHandler(SocketSlashCommand command)
