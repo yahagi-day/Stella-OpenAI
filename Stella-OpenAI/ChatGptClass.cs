@@ -106,7 +106,7 @@ internal class ChatGptClass
         {
             ChannelList.Add(command.Channel.Id, _api.Chat.CreateConversation(new ChatRequest()
             {
-                Model = Model.GPT4
+                Model = "gpt-4o"
             })!);
             ChannelList[command.Channel.Id].AppendSystemMessage(DefaultPrompt);
         }

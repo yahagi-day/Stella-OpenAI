@@ -11,7 +11,7 @@ internal class Program : InteractionModuleBase
     private DiscordSocketClient _client = new ();
     private ChatGptClass? _chatGptClass;
     private string? _tokenDiscord;
-    private const string Version = "0.7.3 GPT-4";
+    private const string Version = "0.8.0 GPT-4 Omuni";
 
     public static Task Main(string[] _)
     {
