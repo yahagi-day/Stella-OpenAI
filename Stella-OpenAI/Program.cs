@@ -1,9 +1,7 @@
 ﻿using System.Runtime.InteropServices;
 using Discord;
 using Discord.Interactions;
-using Discord.Net;
 using Discord.WebSocket;
-using Newtonsoft.Json;
 namespace Stella_OpenAI;
 
 internal class Program : InteractionModuleBase
@@ -47,7 +45,6 @@ internal class Program : InteractionModuleBase
         await _client.StartAsync();
         _client.MessageReceived += CommandReceived;
 
-        _interactionService.RegisterCommandsGloballyAsync();
         await Task.Delay(-1);
     }
 
@@ -80,6 +77,7 @@ internal class Program : InteractionModuleBase
     }
     private async Task Client_Ready()
     {
+        await _interactionService.RegisterCommandsGloballyAsync();
         /*
         //create-image
         var createImage = new SlashCommandBuilder();
