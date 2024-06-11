@@ -11,7 +11,8 @@ internal class Program : InteractionModuleBase
     private DiscordSocketClient _client = new ();
     private ChatGptClass? _chatGptClass;
     private string? _tokenDiscord;
-    private const string Version = "0.8.0 GPT-4 Omni";
+    private InteractionService? _interactionService;
+    private const string Version = "0.8.1 GPT-4 Omni";
 
     public static Task Main(string[] _)
     {
@@ -35,7 +36,9 @@ internal class Program : InteractionModuleBase
         _client = new DiscordSocketClient(new DiscordSocketConfig { GatewayIntents = GatewayIntents.All });
         _client.Log += Log;
         _client.Ready += Client_Ready;
-        _client.SlashCommandExecuted += SlashCommandHandler;
+
+        _interactionService = new InteractionService(_client.Rest);
+        //_client.SlashCommandExecuted += SlashCommandHandler;
 
         _chatGptClass = new ChatGptClass(_client);
         //終了時の処理
@@ -43,6 +46,8 @@ internal class Program : InteractionModuleBase
         await _client.LoginAsync(TokenType.Bot, _tokenDiscord);
         await _client.StartAsync();
         _client.MessageReceived += CommandReceived;
+
+        _interactionService.RegisterCommandsGloballyAsync();
         await Task.Delay(-1);
     }
 
