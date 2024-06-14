@@ -75,7 +75,7 @@ internal class Program : InteractionModuleBase
     }
     private async Task Client_Ready()
     {
-        /*
+        
         //create-image
         var createImage = new SlashCommandBuilder();
         createImage.WithName("create-image");
@@ -121,7 +121,7 @@ internal class Program : InteractionModuleBase
             var json = JsonConvert.SerializeObject(e.Errors, Formatting.Indented);
             Console.WriteLine($"Client_Ready{json}");
         }
-        */
+        
     }
 
     private async Task SlashCommandHandler(SocketSlashCommand command)
