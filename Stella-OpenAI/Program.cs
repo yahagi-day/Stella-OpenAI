@@ -1,20 +1,35 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Reflection;
+using System.Runtime.InteropServices;
 using Discord;
 using Discord.Interactions;
-using Discord.Net;
 using Discord.WebSocket;
-using Newtonsoft.Json;
+using Microsoft.Extensions.DependencyInjection;
+
 namespace Stella_OpenAI;
 
-internal class Program : InteractionModuleBase
+internal class Program
 {
+    private static IServiceProvider _serviceProvider;
+    
     private DiscordSocketClient _client = new ();
     private ChatGptClass? _chatGptClass;
     private string? _tokenDiscord;
-    private const string Version = "0.8.0 GPT-4 Omni";
+    private InteractionService? _interactionService;
+    private const string Version = "0.8.1 GPT-4 Omni";
 
+    public InteractionService InteractionService;
+
+    private static IServiceProvider CreateProvider()
+    {
+        var config = new DiscordSocketConfig { GatewayIntents = GatewayIntents.All };
+        var collection = new ServiceCollection()
+            .AddSingleton(config)
+            .AddSingleton<DiscordSocketClient>();
+        return collection.BuildServiceProvider();
+    }
     public static Task Main(string[] _)
     {
+        _serviceProvider = CreateProvider();
         return new Program().MainAsync();
     }
 
@@ -30,12 +45,14 @@ internal class Program : InteractionModuleBase
             Console.WriteLine(e);
             throw;
         }
-        
 
-        _client = new DiscordSocketClient(new DiscordSocketConfig { GatewayIntents = GatewayIntents.All });
+
+        _client = _serviceProvider.GetRequiredService<DiscordSocketClient>();
         _client.Log += Log;
         _client.Ready += Client_Ready;
-        _client.SlashCommandExecuted += SlashCommandHandler;
+
+
+        //_client.SlashCommandExecuted += SlashCommandHandler;
 
         _chatGptClass = new ChatGptClass(_client);
         //終了時の処理
@@ -43,6 +60,7 @@ internal class Program : InteractionModuleBase
         await _client.LoginAsync(TokenType.Bot, _tokenDiscord);
         await _client.StartAsync();
         _client.MessageReceived += CommandReceived;
+
         await Task.Delay(-1);
     }
 
@@ -75,7 +93,16 @@ internal class Program : InteractionModuleBase
     }
     private async Task Client_Ready()
     {
-        
+        _interactionService = new InteractionService(_client);
+        await _interactionService.AddModulesAsync(Assembly.GetEntryAssembly(), _serviceProvider);
+        await _interactionService.RegisterCommandsGloballyAsync();
+
+        _client.InteractionCreated += async (x) =>
+        {
+            var ctx = new SocketInteractionContext(_client, x);
+            await _interactionService.ExecuteCommandAsync(ctx, _serviceProvider);
+        };
+        /*
         //create-image
         var createImage = new SlashCommandBuilder();
         createImage.WithName("create-image");
@@ -90,12 +117,12 @@ internal class Program : InteractionModuleBase
         systemCommand.WithName("system");
         systemCommand.WithDescription("System側のpromptを出します")
             .AddOption("prompt", ApplicationCommandOptionType.String, "ここにプロンプトを入力！", true);
-        
+
         //enableCommand
         var enableCommand = new SlashCommandBuilder();
         enableCommand.WithName("enable");
         enableCommand.WithDescription("このチャンネルにStella-Chanを呼びます");
-        
+
         //disableCommand
         var disableCommand = new SlashCommandBuilder();
         disableCommand.WithName("disable");
@@ -121,7 +148,7 @@ internal class Program : InteractionModuleBase
             var json = JsonConvert.SerializeObject(e.Errors, Formatting.Indented);
             Console.WriteLine($"Client_Ready{json}");
         }
-        
+        */
     }
 
     private async Task SlashCommandHandler(SocketSlashCommand command)
