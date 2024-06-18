@@ -15,7 +15,7 @@ internal class Program
     private ChatGptClass? _chatGptClass;
     private string? _tokenDiscord;
     private InteractionService? _interactionService;
-    private const string Version = "0.8.1 GPT-4 Omni";
+
 
     public InteractionService InteractionService;
 
@@ -151,7 +151,8 @@ internal class Program
         */
     }
 
-    private async Task SlashCommandHandler(SocketSlashCommand command)
+
+    /*private async Task SlashCommandHandler(SocketSlashCommand command)
     {
         try
         {
@@ -190,6 +191,7 @@ internal class Program
             Console.WriteLine($"error:{e.Message}");
         }
     }
+    */
 
     private async void DisconnectService(object? sender, EventArgs e)
     {
@@ -198,7 +200,7 @@ internal class Program
         await _client.LogoutAsync()!;
         _client.Log -= Log;
         _client.MessageReceived -= CommandReceived;
-        _client.SlashCommandExecuted -= SlashCommandHandler;
+        //_client.SlashCommandExecuted -= SlashCommandHandler;
 
         AppDomain.CurrentDomain.ProcessExit -= DisconnectService;
     }
