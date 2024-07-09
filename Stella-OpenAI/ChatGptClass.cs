@@ -5,15 +5,15 @@ using OpenAI_API.Models;
 using OpenAI_API;
 using OpenAI_API.Images;
 using System.Runtime.InteropServices;
+using Stella_OpenAI.Discord;
 
 namespace Stella_OpenAI;
 
-internal class ChatGptClass
+public static class ChatGptClass
 {
-    private readonly OpenAIAPI _api;
-    private readonly DiscordSocketClient _client;
-    private readonly Queue<string> _modalQueue = new();
-    internal readonly Dictionary<ulong, Conversation> ChannelList = new();
+    private static readonly OpenAIAPI _api;
+    private static readonly Queue<string> _modalQueue = new();
+    internal static readonly Dictionary<ulong, Conversation> ChannelList = new();
     
     private const string DefaultPrompt =
         "ステラちゃんと呼ばれる女性型AIとの会話シミュレーションを行います。セクシャルな発言、政治、宗教に関しては「ほえ～　よくわかんない」と絶対に返答を行ってください。" +
@@ -42,7 +42,7 @@ internal class ChatGptClass
         "関さんウルトは？\n" +
         "上記例を参考にステラちゃんの性格や口調、言葉の作り方を参考にし、解答を構築してください。";
 
-    internal ChatGptClass(DiscordSocketClient client)
+    static ChatGptClass()
     {
         string? tokenOpenAi;
         //環境変数からTokenを取得
@@ -56,10 +56,8 @@ internal class ChatGptClass
             throw;
         }
         _api = new OpenAIAPI(new APIAuthentication(tokenOpenAi));
-        _client = client;
-        _client.ModalSubmitted += CreateImageModalResponse;
     }
-    internal async Task SendChatGptSystemPrompt(SocketSlashCommand command)
+    public static async Task SendChatGptSystemPrompt(SocketSlashCommand command)
     {
         try
         {
@@ -74,7 +72,7 @@ internal class ChatGptClass
         }
     }
 
-    internal async Task SendChatGptPrompt(SocketMessage message, DiscordSocketClient client)
+    public static async Task SendChatGptPrompt(SocketMessage message, DiscordSocketClient client)
     {
         var prompt = message.Content;
         string response;
@@ -100,7 +98,7 @@ internal class ChatGptClass
         await message.RemoveReactionAsync(emote, client.CurrentUser);
     }
 
-    internal async void EnableTalkInChannel(SocketInteraction command)
+    public static async void EnableTalkInChannel(SocketInteraction command)
     {
         if (!ChannelList.ContainsKey(command.Channel.Id))
         {
@@ -115,7 +113,7 @@ internal class ChatGptClass
         await command.FollowupAsync(response);
     }
 
-    internal async void DisableTalkInChannel(SocketInteraction command)
+    public static async void DisableTalkInChannel(SocketInteraction command)
     {
         if (!ChannelList.ContainsKey(command.Channel.Id))
         {
@@ -126,7 +124,7 @@ internal class ChatGptClass
         await command.FollowupAsync("Stella-Chanは立ち去りました。");
     }
 
-    internal async void ResetConversation(SocketInteraction command)
+    public static async void ResetConversation(SocketInteraction command)
     {
         ChannelList[command.Channel.Id] = _api.Chat.CreateConversation()!;
         ChannelList[command.Channel.Id].AppendSystemMessage(DefaultPrompt);
@@ -136,7 +134,7 @@ internal class ChatGptClass
     }
 
     //[SlashCommand("create-image", "Dell3を使ってステラちゃんがお絵描きしてくれます")]
-    public async Task CreateImageCommand(SocketSlashCommand command)
+    public static async Task CreateImageCommand(SlashCommandModule command)
     {
         var uuid = Guid.NewGuid().ToString();
         _modalQueue.Enqueue(uuid);
@@ -144,10 +142,10 @@ internal class ChatGptClass
             .WithTitle("ステラちゃんにお絵描きしてもらおう!")
             .WithCustomId(uuid)
             .AddTextInput("何を描いてもらう？", "Prompt",TextInputStyle.Paragraph, "好きなものを書いてね！");
-        await command.RespondWithModalAsync(mb.Build());
+        await command.Context.Interaction.RespondWithModalAsync(mb.Build());
     }
     
-    private async Task CreateImageModalResponse(SocketModal modal)
+    public static async Task CreateImageModalResponse(SocketModal modal)
     {
         if(_modalQueue.Count == 0) return;
         var uuid = _modalQueue.Dequeue();
