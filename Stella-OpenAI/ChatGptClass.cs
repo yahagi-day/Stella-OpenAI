@@ -5,15 +5,15 @@ using OpenAI_API.Models;
 using OpenAI_API;
 using OpenAI_API.Images;
 using System.Runtime.InteropServices;
-using Stella_OpenAI.Discord;
+using Discord.Interactions;
 
 namespace Stella_OpenAI;
 
 public static class ChatGptClass
 {
-    private static readonly OpenAIAPI _api;
-    private static readonly Queue<string> _modalQueue = new();
-    internal static readonly Dictionary<ulong, Conversation> ChannelList = new();
+    private static readonly OpenAIAPI Api;
+    private static readonly Queue<string> ModalQueue = new();
+    private static readonly Dictionary<ulong, Conversation> ChannelList = new();
     
     private const string DefaultPrompt =
         "ステラちゃんと呼ばれる女性型AIとの会話シミュレーションを行います。セクシャルな発言、政治、宗教に関しては「ほえ～　よくわかんない」と絶対に返答を行ってください。" +
@@ -55,7 +55,7 @@ public static class ChatGptClass
             Console.WriteLine(e);
             throw;
         }
-        _api = new OpenAIAPI(new APIAuthentication(tokenOpenAi));
+        Api = new OpenAIAPI(new APIAuthentication(tokenOpenAi));
     }
     public static async Task SendChatGptSystemPrompt(SocketSlashCommand command)
     {
@@ -102,7 +102,7 @@ public static class ChatGptClass
     {
         if (!ChannelList.ContainsKey(command.Channel.Id))
         {
-            ChannelList.Add(command.Channel.Id, _api.Chat.CreateConversation(new ChatRequest()
+            ChannelList.Add(command.Channel.Id, Api.Chat.CreateConversation(new ChatRequest()
             {
                 Model = "gpt-4o"
             })!);
@@ -126,7 +126,7 @@ public static class ChatGptClass
 
     public static async void ResetConversation(SocketInteraction command)
     {
-        ChannelList[command.Channel.Id] = _api.Chat.CreateConversation()!;
+        ChannelList[command.Channel.Id] = Api.Chat.CreateConversation()!;
         ChannelList[command.Channel.Id].AppendSystemMessage(DefaultPrompt);
         ChannelList[command.Channel.Id].AppendUserInput("こんにちは");
         var response = await ChannelList[command.Channel.Id].GetResponseFromChatbotAsync();
@@ -134,21 +134,28 @@ public static class ChatGptClass
     }
 
     //[SlashCommand("create-image", "Dell3を使ってステラちゃんがお絵描きしてくれます")]
-    public static async Task CreateImageCommand(SlashCommandModule command)
+    public static async Task CreateImageCommand(SocketInteractionContext context)
     {
         var uuid = Guid.NewGuid().ToString();
-        _modalQueue.Enqueue(uuid);
+        ModalQueue.Enqueue(uuid);
         var mb = new ModalBuilder()
             .WithTitle("ステラちゃんにお絵描きしてもらおう!")
             .WithCustomId(uuid)
             .AddTextInput("何を描いてもらう？", "Prompt",TextInputStyle.Paragraph, "好きなものを書いてね！");
-        await command.Context.Interaction.RespondWithModalAsync(mb.Build());
+        try
+        {
+            await context.Interaction.RespondWithModalAsync(mb.Build());
+        }
+        catch (Exception)
+        {
+            await context.Interaction.RespondAsync("ふわ～>< よくわかんないや…");
+        }
     }
     
     public static async Task CreateImageModalResponse(SocketModal modal)
     {
-        if(_modalQueue.Count == 0) return;
-        var uuid = _modalQueue.Dequeue();
+        if(ModalQueue.Count == 0) return;
+        var uuid = ModalQueue.Dequeue();
         if (modal.Data.CustomId != uuid) return;
 
         await modal.DeferAsync();
@@ -156,14 +163,14 @@ public static class ChatGptClass
         var prompt = components.First(x => x.CustomId == "Prompt").Value;
         try
         {
-            var result = await _api.ImageGenerations.CreateImageAsync(new ImageGenerationRequest(prompt, Model.DALLE3,
+            var result = await Api.ImageGenerations.CreateImageAsync(new ImageGenerationRequest(prompt, Model.DALLE3,
                 ImageSize._1024, responseFormat: ImageResponseFormat.B64_json));
             //base64 imageを画像にする
             var bytes = Convert.FromBase64String(result.Data[0].Base64Data);
             var file = new List<FileAttachment> { new(new MemoryStream(bytes), $"image_{prompt}.webp") };
             await modal.FollowupWithFilesAsync(file, text: prompt);
         }
-        catch (Exception e)
+        catch (Exception)
         {
             await modal.FollowupAsync("ふわ～>< よくわかんないや…");
         }

@@ -9,14 +9,13 @@ namespace Stella_OpenAI;
 
 public class Program
 {
+#pragma warning disable CS8618
     private static IServiceProvider _serviceProvider;
+#pragma warning restore CS8618
     
     private DiscordSocketClient _client = new ();
     private string? _tokenDiscord;
     private InteractionService? _interactionService;
-
-
-    public InteractionService InteractionService;
 
     private static IServiceProvider CreateProvider()
     {

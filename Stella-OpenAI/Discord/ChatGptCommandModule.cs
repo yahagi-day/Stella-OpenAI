@@ -6,12 +6,9 @@ namespace Stella_OpenAI.Discord;
 public class ChatGptCommandModule : InteractionModuleBase<SocketInteractionContext>
 {
 
-    public static SlashCommandModule Instance { get; } = new();
-
-
     [SlashCommand("create-image", "Dell3を使ってステラちゃんがお絵描きしてくれます")]
     public async Task CreateImageWithDell3()
-        => await ChatGptClass.CreateImageCommand(Instance);
+        => await ChatGptClass.CreateImageCommand(Context);
 
     [SlashCommand("reset", "Stella-Chanの記憶を消します")]
     public async Task ResetConversation()
