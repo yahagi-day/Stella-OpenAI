@@ -1,4 +1,3 @@
-using Discord;
 using Discord.Interactions;
 
 namespace Stella_OpenAI.Discord;
@@ -8,17 +7,17 @@ public class ChatGptCommandModule : InteractionModuleBase<SocketInteractionConte
 
     [SlashCommand("create-image", "Dell3を使ってステラちゃんがお絵描きしてくれます")]
     public async Task CreateImageWithDell3()
-        => await ChatGptClass.CreateImageCommand(Context);
+        => throw new NotImplementedException();
 
     [SlashCommand("reset", "Stella-Chanの記憶を消します")]
     public async Task ResetConversation()
-        => throw new NotImplementedException();
+        => await ChatGptClass.ResetConversationAsync(Context.Channel.Id);
 
     [SlashCommand("enable", "このチャンネルにStella-Chanを呼びます")]
     public async Task EnableConversation()
-        => throw new NotImplementedException();
+        => await ChatGptClass.CreateConversationAsync(Context.Channel.Id);
 
     [SlashCommand("disable", "このチャンネルのStella-Chanが居なくなります")]
-    public async Task DisableConversation()
-        => throw new NotImplementedException();
+    public void DisableConversation()
+        => ChatGptClass.DeleteConversation(Context.Channel.Id);
 }

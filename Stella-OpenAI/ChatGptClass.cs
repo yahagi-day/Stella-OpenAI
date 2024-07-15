@@ -1,19 +1,17 @@
-using Discord.WebSocket;
 using Discord;
 using OpenAI_API.Chat;
 using OpenAI_API.Models;
 using OpenAI_API;
 using OpenAI_API.Images;
 using System.Runtime.InteropServices;
-using Discord.Interactions;
 
 namespace Stella_OpenAI;
 
 public static class ChatGptClass
 {
     private static readonly OpenAIAPI Api;
-    private static readonly Queue<string> ModalQueue = new();
-    private static readonly Dictionary<ulong, Conversation> ChannelList = new();
+    public static readonly Queue<string> ModalQueue = new();
+    public static readonly Dictionary<ulong, Conversation> ChannelList = new();
     
     private const string DefaultPrompt =
         "ステラちゃんと呼ばれる女性型AIとの会話シミュレーションを行います。セクシャルな発言、政治、宗教に関しては「ほえ～　よくわかんない」と絶対に返答を行ってください。" +
@@ -57,122 +55,73 @@ public static class ChatGptClass
         }
         Api = new OpenAIAPI(new APIAuthentication(tokenOpenAi));
     }
-    public static async Task SendChatGptSystemPrompt(SocketSlashCommand command)
+
+    public static async Task<string> SendChatGptPromptAsync(string message, ulong id, CancellationToken token = default)
     {
-        try
-        {
-            ChannelList[command.Channel.Id].AppendSystemMessage(command.Data.Options.First().Value.ToString());
-            await ChannelList[command.Channel.Id].GetResponseFromChatbotAsync();
-            await command.FollowupAsync("更新しました");
-        }
-        catch (Exception e)
-        {
-            Console.WriteLine(e);
-            throw;
-        }
+        ChannelList[id].AppendUserInput(message);
+        var cts = new CancellationTokenSource();
+        var response = await Task.Run(() => ChannelList[id].GetResponseFromChatbotAsync(),
+            cts.Token);
+
+        return response;
     }
 
-    public static async Task SendChatGptPrompt(SocketMessage message, DiscordSocketClient client)
+    public static async Task<string> CreateConversationAsync(ulong id, CancellationToken token = default)
     {
-        var prompt = message.Content;
-        string response;
-        var emote = Emote.Parse("<a:working:1085848442468827146>");
-        // ReSharper disable once StringLiteralTypo
-        var badReaction = Emote.Parse("<:zofinka:761499334654689300>");
-        await message.AddReactionAsync(emote);
-        try
+        if (!ChannelList.ContainsKey(id))
         {
-            ChannelList[message.Channel.Id].AppendUserInput(prompt);
-            var cts = new CancellationTokenSource();
-            response = await Task.Run(() => ChannelList[message.Channel.Id].GetResponseFromChatbotAsync(),
-                cts.Token);
-        }
-        catch (Exception)
-        {
-            await message.RemoveReactionAsync(emote, client.CurrentUser);
-            await message.AddReactionAsync(badReaction);
-            return;
-        }
-
-        await message.Channel.SendMessageAsync(response, messageReference: new MessageReference(message.Id));
-        await message.RemoveReactionAsync(emote, client.CurrentUser);
-    }
-
-    public static async void EnableTalkInChannel(SocketInteraction command)
-    {
-        if (!ChannelList.ContainsKey(command.Channel.Id))
-        {
-            ChannelList.Add(command.Channel.Id, Api.Chat.CreateConversation(new ChatRequest()
+            ChannelList.Add(id, Api.Chat.CreateConversation(new ChatRequest()
             {
                 Model = "gpt-4o"
             })!);
-            ChannelList[command.Channel.Id].AppendSystemMessage(DefaultPrompt);
+            ChannelList[id].AppendSystemMessage(DefaultPrompt);
         }
-        ChannelList[command.Channel.Id].AppendUserInput("こんにちは");
-        var response = await ChannelList[command.Channel.Id].GetResponseFromChatbotAsync();
-        await command.FollowupAsync(response);
+        ChannelList[id].AppendUserInput("こんにちは");
+
+        var response = await ChannelList[id].GetResponseFromChatbotAsync();
+        token.ThrowIfCancellationRequested();
+        return response;
     }
 
-    public static async void DisableTalkInChannel(SocketInteraction command)
+    public static string DeleteConversation(ulong id)
     {
-        if (!ChannelList.ContainsKey(command.Channel.Id))
+        if (!ChannelList.ContainsKey(id))
         {
-            await command.FollowupAsync("このチャンネルにStella-Chanは居なかったみたいです。");
-            return;
+            return "このチャンネルにStella-Chanは居なかったみたいです。";
         }
-        ChannelList.Remove(command.Channel.Id);
-        await command.FollowupAsync("Stella-Chanは立ち去りました。");
+        ChannelList.Remove(id);
+        return "ステラちゃんはどこかに行ってしまったようです";
     }
 
-    public static async void ResetConversation(SocketInteraction command)
+    public static async Task<string> ResetConversationAsync(ulong id, CancellationToken token = default)
     {
-        ChannelList[command.Channel.Id] = Api.Chat.CreateConversation()!;
-        ChannelList[command.Channel.Id].AppendSystemMessage(DefaultPrompt);
-        ChannelList[command.Channel.Id].AppendUserInput("こんにちは");
-        var response = await ChannelList[command.Channel.Id].GetResponseFromChatbotAsync();
-        await command.Channel.SendMessageAsync(response);
+        ChannelList[id] = Api.Chat.CreateConversation()!;
+        ChannelList[id].AppendSystemMessage(DefaultPrompt);
+        ChannelList[id].AppendUserInput("こんにちは");
+        var response = await ChannelList[id].GetResponseFromChatbotAsync();
+        token.ThrowIfCancellationRequested();
+        return response;
     }
 
-    //[SlashCommand("create-image", "Dell3を使ってステラちゃんがお絵描きしてくれます")]
-    public static async Task CreateImageCommand(SocketInteractionContext context)
+    public static async Task<byte[]> CreateImageDataAsync(string prompt, CancellationToken token = default)
     {
-        var uuid = Guid.NewGuid().ToString();
-        ModalQueue.Enqueue(uuid);
-        var mb = new ModalBuilder()
-            .WithTitle("ステラちゃんにお絵描きしてもらおう!")
-            .WithCustomId(uuid)
-            .AddTextInput("何を描いてもらう？", "Prompt",TextInputStyle.Paragraph, "好きなものを書いてね！");
-        try
-        {
-            await context.Interaction.RespondWithModalAsync(mb.Build());
-        }
-        catch (Exception)
-        {
-            await context.Interaction.RespondAsync("ふわ～>< よくわかんないや…");
-        }
-    }
-    
-    public static async Task CreateImageModalResponse(SocketModal modal)
-    {
-        if(ModalQueue.Count == 0) return;
-        var uuid = ModalQueue.Dequeue();
-        if (modal.Data.CustomId != uuid) return;
-
-        await modal.DeferAsync();
-        var components = modal.Data.Components.ToList();
-        var prompt = components.First(x => x.CustomId == "Prompt").Value;
         try
         {
             var result = await Api.ImageGenerations.CreateImageAsync(new ImageGenerationRequest(prompt, Model.DALLE3,
                 ImageSize._1024, responseFormat: ImageResponseFormat.B64_json));
+            token.ThrowIfCancellationRequested();
             //base64 imageを画像にする
             var bytes = Convert.FromBase64String(result.Data[0].Base64Data);
-            var file = new List<FileAttachment> { new(new MemoryStream(bytes), $"image_{prompt}.webp") };
-            await modal.FollowupWithFilesAsync(file, text: prompt);
+            return bytes;
         }
-        catch (Exception)
+        catch (OperationCanceledException)
         {
-            await modal.FollowupAsync("ふわ～>< よくわかんないや…");
+            throw new OperationCanceledException();
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            throw new Exception();
         }
     }
 }

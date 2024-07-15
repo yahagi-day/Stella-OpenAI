@@ -4,6 +4,7 @@ using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
+using Stella_OpenAI.Discord;
 
 namespace Stella_OpenAI;
 
@@ -48,7 +49,9 @@ public class Program
         _client = _serviceProvider.GetRequiredService<DiscordSocketClient>();
         _client.Log += Log;
         _client.Ready += Client_Ready;
-        _client.ModalSubmitted += ChatGptClass.CreateImageModalResponse;
+        _client.MessageReceived += MessageReceivedEventAsync;
+        //Modalを使っているのがCreateImageしかないからこれでいいがそのうち汎用化する
+        //_client.ModalSubmitted += ChatGptClass.CreateImageModalResponse;
 
         //終了時の処理
         AppDomain.CurrentDomain.ProcessExit += DisconnectService;
@@ -68,6 +71,7 @@ public class Program
     private async Task Client_Ready()
     {
         _interactionService = new InteractionService(_client);
+        //InteractionModuleBaseを参照しているクラスを取得して登録している
         await _interactionService.AddModulesAsync(Assembly.GetEntryAssembly(), _serviceProvider);
         await _interactionService.RegisterCommandsGloballyAsync();
 
@@ -84,8 +88,18 @@ public class Program
         await _client.StopAsync()!;
         await _client.LogoutAsync()!;
         _client.Log -= Log;
-        _client.ModalSubmitted -= ChatGptClass.CreateImageModalResponse;
-
+        _client.MessageReceived -= MessageReceivedEventAsync;
+        //_client.ModalSubmitted -= ChatGptClass.CreateImageModalResponse;
         AppDomain.CurrentDomain.ProcessExit -= DisconnectService;
+    }
+
+    private async Task MessageReceivedEventAsync(SocketMessage message)
+    {
+        if (ChatGptClass.ChannelList.ContainsKey(message.Channel.Id))
+        {
+#pragma warning disable CS4014 // この呼び出しは待機されなかったため、現在のメソッドの実行は呼び出しの完了を待たずに続行されます
+            DiscordEventHandler.SendMessageFromGptAsync(message, _client);
+#pragma warning restore CS4014 // この呼び出しは待機されなかったため、現在のメソッドの実行は呼び出しの完了を待たずに続行されます
+        }
     }
 }
