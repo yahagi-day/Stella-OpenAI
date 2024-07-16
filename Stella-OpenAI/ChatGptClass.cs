@@ -1,4 +1,3 @@
-using Discord;
 using OpenAI_API.Chat;
 using OpenAI_API.Models;
 using OpenAI_API;
@@ -68,17 +67,19 @@ public static class ChatGptClass
 
     public static async Task<string> CreateConversationAsync(ulong id, CancellationToken token = default)
     {
-        if (!ChannelList.ContainsKey(id))
+        if (!ChannelList.TryGetValue(id, out var value))
         {
-            ChannelList.Add(id, Api.Chat.CreateConversation(new ChatRequest()
+            value = Api.Chat.CreateConversation(new ChatRequest()
             {
                 Model = "gpt-4o"
-            })!);
+            })!;
+            ChannelList.Add(id, value);
             ChannelList[id].AppendSystemMessage(DefaultPrompt);
         }
-        ChannelList[id].AppendUserInput("こんにちは");
 
-        var response = await ChannelList[id].GetResponseFromChatbotAsync();
+        value.AppendUserInput("こんにちは");
+
+        var response = await value.GetResponseFromChatbotAsync();
         token.ThrowIfCancellationRequested();
         return response;
     }

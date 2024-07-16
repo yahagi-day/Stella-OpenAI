@@ -51,7 +51,7 @@ public class Program
         _client.Ready += Client_Ready;
         _client.MessageReceived += MessageReceivedEventAsync;
         //Modalを使っているのがCreateImageしかないからこれでいいがそのうち汎用化する
-        //_client.ModalSubmitted += ChatGptClass.CreateImageModalResponse;
+        _client.ModalSubmitted += ModalSubmittedEventAsync;
 
         //終了時の処理
         AppDomain.CurrentDomain.ProcessExit += DisconnectService;
@@ -93,13 +93,26 @@ public class Program
         AppDomain.CurrentDomain.ProcessExit -= DisconnectService;
     }
 
-    private async Task MessageReceivedEventAsync(SocketMessage message)
+    private Task MessageReceivedEventAsync(SocketMessage message)
     {
-        if (ChatGptClass.ChannelList.ContainsKey(message.Channel.Id))
+        if (ChatGptClass.ChannelList.ContainsKey(message.Channel.Id) && !message.Author.IsBot && !message.Author.IsWebhook)
         {
-#pragma warning disable CS4014 // この呼び出しは待機されなかったため、現在のメソッドの実行は呼び出しの完了を待たずに続行されます
+#pragma warning disable CS4014
             DiscordEventHandler.SendMessageFromGptAsync(message, _client);
-#pragma warning restore CS4014 // この呼び出しは待機されなかったため、現在のメソッドの実行は呼び出しの完了を待たずに続行されます
+#pragma warning restore CS4014
         }
+
+        return Task.CompletedTask;
+    }
+
+    private Task ModalSubmittedEventAsync(SocketModal modal)
+    {
+        if (modal.Data.CustomId == "CreateImage")
+        {
+#pragma warning disable CS4014
+            DiscordEventHandler.SendCreateImageFromModal(modal);
+#pragma warning restore CS4014
+        }
+        return Task.CompletedTask;
     }
 }
