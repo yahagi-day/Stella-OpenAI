@@ -9,9 +9,9 @@
 このコードは、Discordで動作するチャットボット「ステラちゃん」を実装したC#プログラムです。上記の`bot Invite`からサーバーにBotを招待することができます。
 
 ## 使用しているライブラリ
-- Discord.Net
-- Newtonsoft.Json
-- OpenAI_API
+- [Discord.Net 3.15.2](https://www.nuget.org/packages/Discord.Net/3.15.2)
+- [Microsoft.Extensions.DependencyInjection 8.0.0](https://www.nuget.org/packages/Microsoft.Extensions.DependencyInjection/8.0.0)
+- [OpenAI 1.11.0](https://www.nuget.org/packages/OpenAI/1.11.0)
 
 ## 環境変数
 - `TOKEN_DISCORD`: Discord Botのトークンを設定します。
