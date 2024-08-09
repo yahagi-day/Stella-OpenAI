@@ -1,16 +1,12 @@
-using OpenAI_API.Chat;
-using OpenAI_API.Models;
-using OpenAI_API;
-using OpenAI_API.Images;
 using System.Runtime.InteropServices;
+using OpenAI.Chat;
 
 namespace Stella_OpenAI;
 
 public static class ChatGptClass
 {
-    private static readonly OpenAIAPI Api;
-    public static readonly Queue<string> ModalQueue = new();
-    public static readonly Dictionary<ulong, Conversation> ChannelList = new();
+    public static readonly Dictionary<ulong, ChatClient> ChannelList = new();
+    private static string tokenOpenAi;
     
     private const string DefaultPrompt =
         "ステラちゃんと呼ばれる女性型AIとの会話シミュレーションを行います。" +
@@ -41,23 +37,22 @@ public static class ChatGptClass
 
     static ChatGptClass()
     {
-        string? tokenOpenAi;
         //環境変数からTokenを取得
         try
         {
-            tokenOpenAi = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? Environment.GetEnvironmentVariable("TOKEN_OPENAI", EnvironmentVariableTarget.User) : Environment.GetEnvironmentVariable("TOKEN_OPENAI");
+            tokenOpenAi = (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? Environment.GetEnvironmentVariable("TOKEN_OPENAI", EnvironmentVariableTarget.User) : Environment.GetEnvironmentVariable("TOKEN_OPENAI")) ?? throw new InvalidOperationException();
+            
         }
         catch (Exception e)
         {
             Console.WriteLine(e);
             throw;
         }
-        Api = new OpenAIAPI(new APIAuthentication(tokenOpenAi));
     }
 
     public static async Task<string> SendChatGptPromptAsync(string message, ulong id, CancellationToken token = default)
-    {
-        ChannelList[id].AppendUserInput(message);
+    { 
+        await client.CompleteChatAsync(message);
         var cts = new CancellationTokenSource();
         var response = await Task.Run(() => ChannelList[id].GetResponseFromChatbotAsync(),
             cts.Token);
@@ -69,12 +64,9 @@ public static class ChatGptClass
     {
         if (!ChannelList.TryGetValue(id, out var value))
         {
-            value = Api.Chat.CreateConversation(new ChatRequest()
-            {
-                Model = "gpt-4o-mini"
-            })!;
+            value = new ChatClient("gpt-4o-mini", tokenOpenAi):
             ChannelList.Add(id, value);
-            ChannelList[id].AppendSystemMessage(DefaultPrompt);
+            await ChannelList[id].CompleteChatAsync(DefaultPrompt);
         }
 
         value.AppendUserInput("こんにちは");
