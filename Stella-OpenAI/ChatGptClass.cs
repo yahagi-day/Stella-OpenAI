@@ -71,7 +71,7 @@ public static class ChatGptClass
         {
             value = Api.Chat.CreateConversation(new ChatRequest()
             {
-                Model = "gpt-4o"
+                Model = "gpt-4o-mini"
             })!;
             ChannelList.Add(id, value);
             ChannelList[id].AppendSystemMessage(DefaultPrompt);
