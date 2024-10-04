@@ -1,16 +1,14 @@
-using OpenAI_API.Chat;
-using OpenAI_API.Models;
-using OpenAI_API;
-using OpenAI_API.Images;
+using OpenAI.Chat;
 using System.Runtime.InteropServices;
+using OpenAI.Images;
 
 namespace Stella_OpenAI;
 
-public static class ChatGptClass
+public class ChatGptClass
 {
-    private static readonly OpenAIAPI Api;
-    public static readonly Queue<string> ModalQueue = new();
-    public static readonly Dictionary<ulong, Conversation> ChannelList = new();
+    private readonly ChatClient _api;
+    private readonly ImageClient _imageClient;
+    private readonly List<ChatMessage> _messages = [];
     
     private const string DefaultPrompt =
         "ステラちゃんと呼ばれる女性型AIとの会話シミュレーションを行います。" +
@@ -39,90 +37,59 @@ public static class ChatGptClass
         "関さんウルトは？\n" +
         "上記例を参考にステラちゃんの性格や口調、言葉の作り方を参考にし、解答を構築してください。";
 
-    static ChatGptClass()
+    public ChatGptClass()
     {
-        string? tokenOpenAi;
         //環境変数からTokenを取得
         try
         {
-            tokenOpenAi = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? Environment.GetEnvironmentVariable("TOKEN_OPENAI", EnvironmentVariableTarget.User) : Environment.GetEnvironmentVariable("TOKEN_OPENAI");
+            var tokenOpenAi = (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? Environment.GetEnvironmentVariable("TOKEN_OPENAI", EnvironmentVariableTarget.User) : Environment.GetEnvironmentVariable("TOKEN_OPENAI")) ?? throw new InvalidOperationException();
+            _api = new ChatClient(model: "gpt-4o", apiKey: tokenOpenAi);
+            _imageClient = new ImageClient("dall-e-3", tokenOpenAi);
+            _messages.Add(new SystemChatMessage(DefaultPrompt));
         }
         catch (Exception e)
         {
             Console.WriteLine(e);
             throw;
         }
-        Api = new OpenAIAPI(new APIAuthentication(tokenOpenAi));
     }
 
-    public static async Task<string> SendChatGptPromptAsync(string message, ulong id, CancellationToken token = default)
-    {
-        ChannelList[id].AppendUserInput(message);
-        var cts = new CancellationTokenSource();
-        var response = await Task.Run(() => ChannelList[id].GetResponseFromChatbotAsync(),
-            cts.Token);
-
-        return response;
-    }
-
-    public static async Task<string> CreateConversationAsync(ulong id, CancellationToken token = default)
-    {
-        if (!ChannelList.TryGetValue(id, out var value))
-        {
-            value = Api.Chat.CreateConversation(new ChatRequest()
-            {
-                Model = "gpt-4o-mini"
-            })!;
-            ChannelList.Add(id, value);
-            ChannelList[id].AppendSystemMessage(DefaultPrompt);
-        }
-
-        value.AppendUserInput("こんにちは");
-
-        var response = await value.GetResponseFromChatbotAsync();
-        token.ThrowIfCancellationRequested();
-        return response;
-    }
-
-    public static string DeleteConversation(ulong id)
-    {
-        if (!ChannelList.ContainsKey(id))
-        {
-            return "このチャンネルにStella-Chanは居なかったみたいです。";
-        }
-        ChannelList.Remove(id);
-        return "ステラちゃんはどこかに行ってしまったようです";
-    }
-
-    public static async Task<string> ResetConversationAsync(ulong id, CancellationToken token = default)
-    {
-        ChannelList[id] = Api.Chat.CreateConversation()!;
-        ChannelList[id].AppendSystemMessage(DefaultPrompt);
-        ChannelList[id].AppendUserInput("こんにちは");
-        var response = await ChannelList[id].GetResponseFromChatbotAsync();
-        token.ThrowIfCancellationRequested();
-        return response;
-    }
-
-    public static async Task<byte[]> CreateImageDataAsync(string prompt, CancellationToken token = default)
+    public async Task<string> SendChatGptPromptAsync(IEnumerable<ChatMessage> messages, CancellationToken token = default)
     {
         try
         {
-            var result = await Api.ImageGenerations.CreateImageAsync(new ImageGenerationRequest(prompt, Model.DALLE3,
-                ImageSize._1024, responseFormat: ImageResponseFormat.B64_json));
-            token.ThrowIfCancellationRequested();
-            //base64 imageを画像にする
-            var bytes = Convert.FromBase64String(result.Data[0].Base64Data);
-            return bytes;
+            _messages.AddRange(messages);
+            var completion = await _api.CompleteChatAsync(_messages, cancellationToken: token);
+            var list = completion.Value.Content.ToList();
+            return list[0].Text;
         }
-        catch (OperationCanceledException)
-        {
-            throw new OperationCanceledException();
-        }
-        catch (Exception e)
+        catch(Exception e)
         {
             Console.WriteLine(e);
-            throw new Exception();
+            throw;
+        }
+    }
+
+    public async Task<byte[]> CreateImageDataAsync(string prompt, CancellationToken token = default)
+    {
+        var option = new ImageGenerationOptions
+        {
+            Quality = GeneratedImageQuality.High,
+            Size = GeneratedImageSize.W1024xH1024,
+            Style = GeneratedImageStyle.Vivid,
+            ResponseFormat = GeneratedImageFormat.Bytes
+        };
+
+        try
+        {
+            var image = await _imageClient.GenerateImageAsync(prompt, option, cancellationToken: token);
+            var data = image.Value.ImageBytes;
+            return data.ToArray();
+        }
+        catch(Exception e)
+        {
+            Console.WriteLine(e);
+            throw;
         }
     }
 }

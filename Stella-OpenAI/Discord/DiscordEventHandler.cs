@@ -1,10 +1,13 @@
 using Discord;
 using Discord.WebSocket;
+using OpenAI.Chat;
 
 namespace Stella_OpenAI.Discord;
 
 public static class DiscordEventHandler
 {
+    public static readonly Dictionary<ulong, ChatGptClass> GptClasses = new();
+    private static ChatGptClass _gptClass= new();
     public static async Task SendMessageFromGptAsync(SocketMessage message, DiscordSocketClient client, CancellationToken token = default)
     {
         string response;
@@ -14,7 +17,8 @@ public static class DiscordEventHandler
         await message.AddReactionAsync(emote);
         try
         {
-            response = await ChatGptClass.SendChatGptPromptAsync(message.Content, message.Channel.Id, token);
+            var list = new List<ChatMessage> { new UserChatMessage(message.Content) };
+            response = await GptClasses[message.Channel.Id].SendChatGptPromptAsync(list, token);
         }
         catch (Exception)
         {
@@ -22,6 +26,7 @@ public static class DiscordEventHandler
             await message.AddReactionAsync(badReaction);
             return;
         }
+
         await message.Channel.SendMessageAsync(response, messageReference: new MessageReference(message.Id));
         await message.RemoveReactionAsync(emote, client.CurrentUser);
     }
@@ -33,7 +38,7 @@ public static class DiscordEventHandler
         var prompt = components.First(x => x.CustomId == "Prompt").Value;
         try
         {
-            var bytes = await ChatGptClass.CreateImageDataAsync(prompt, token: token);
+            var bytes = await _gptClass.CreateImageDataAsync(prompt, token: token);
             var file = new List<FileAttachment> { new(new MemoryStream(bytes), $"image_{prompt}.webp") };
             await modal.FollowupWithFilesAsync(file, text: prompt);
         }
