@@ -1,5 +1,6 @@
 using Discord;
 using Discord.Interactions;
+using OpenAI.Chat;
 
 namespace Stella_OpenAI.Discord;
 
@@ -20,22 +21,51 @@ public class ChatGptCommandModule : InteractionModuleBase<SocketInteractionConte
     public async Task ResetConversation()
     {
         await Context.Interaction.DeferAsync();
-        var response = await ChatGptClass.ResetConversationAsync(Context.Channel.Id);
-        await Context.Interaction.FollowupAsync(response);
+        var contain = DiscordEventHandler.GptClasses.ContainsKey(Context.Channel.Id);
+        if (!contain)
+        {
+            await Context.Interaction.FollowupAsync("ここにステラちゃんは居ないみたい");
+        }
+        var status = DiscordEventHandler.GptClasses.TryAdd(Context.Channel.Id, new ChatGptClass());
+        if (status)
+        {
+            var message = new UserChatMessage( "こんにちは");
+            var response = await DiscordEventHandler.GptClasses[Context.Channel.Id].SendChatGptPromptAsync(new []{message});
+            await Context.Interaction.FollowupAsync(response);
+        }
+        await Context.Interaction.FollowupAsync("ふわー>< なんか壊れちゃった");
     }
 
     [SlashCommand("enable", "このチャンネルにStella-Chanを呼びます")]
     public async Task EnableConversation()
     {
         await Context.Interaction.DeferAsync();
-        var response = await ChatGptClass.CreateConversationAsync(Context.Channel.Id);
-        await Context.Interaction.FollowupAsync(response);
+        var status = DiscordEventHandler.GptClasses.TryAdd(Context.Channel.Id, new ChatGptClass());
+        if (status)
+        {
+            var message = new UserChatMessage( "こんにちは");
+            var response = await DiscordEventHandler.GptClasses[Context.Channel.Id].SendChatGptPromptAsync(new []{message});
+            await Context.Interaction.FollowupAsync(response);
+        }
+
     }
 
     [SlashCommand("disable", "このチャンネルのStella-Chanが居なくなります")]
     public async Task DisableConversation()
     {
-        var response = ChatGptClass.DeleteConversation(Context.Channel.Id);
-        await Context.Interaction.RespondAsync(response);
+        var contain = DiscordEventHandler.GptClasses.ContainsKey(Context.Channel.Id);
+        if (!contain)
+        {
+            await Context.Interaction.RespondAsync("ここにステラちゃんは居ないみたい");
+        }
+        var response = DiscordEventHandler.GptClasses.Remove(Context.Channel.Id);
+        if (response)
+        {
+            await Context.Interaction.RespondAsync("ステラちゃんはご飯を食べに行きました");
+        }
+        else
+        {
+            await Context.Interaction.RespondAsync("ふわー>< なんか壊れちゃった");
+        }
     }
 }

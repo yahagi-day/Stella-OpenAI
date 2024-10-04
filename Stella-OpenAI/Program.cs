@@ -95,7 +95,7 @@ public class Program
 
     private Task MessageReceivedEventAsync(SocketMessage message)
     {
-        if (ChatGptClass.ChannelList.ContainsKey(message.Channel.Id) && !message.Author.IsBot && !message.Author.IsWebhook)
+        if (DiscordEventHandler.GptClasses.ContainsKey(message.Channel.Id) && !message.Author.IsBot && !message.Author.IsWebhook)
         {
 #pragma warning disable CS4014
             DiscordEventHandler.SendMessageFromGptAsync(message, _client);
