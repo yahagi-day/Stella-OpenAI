@@ -8,7 +8,7 @@ public class ChatGptClass
 {
     private readonly ChatClient _api;
     private readonly ImageClient _imageClient;
-    private readonly List<ChatMessage> _messages = [];
+    private readonly List<ChatMessage> _messages = new();
     
     private const string DefaultPrompt =
         "ステラちゃんと呼ばれる女性型AIとの会話シミュレーションを行います。" +
@@ -43,7 +43,7 @@ public class ChatGptClass
         try
         {
             var tokenOpenAi = (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? Environment.GetEnvironmentVariable("TOKEN_OPENAI", EnvironmentVariableTarget.User) : Environment.GetEnvironmentVariable("TOKEN_OPENAI")) ?? throw new InvalidOperationException();
-            _api = new ChatClient(model: "gpt-4o", apiKey: tokenOpenAi);
+            _api = new ChatClient(model: "o3-mini", apiKey: tokenOpenAi);
             _imageClient = new ImageClient("dall-e-3", tokenOpenAi);
             _messages.Add(new SystemChatMessage(DefaultPrompt));
         }
