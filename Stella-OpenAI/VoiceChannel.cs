@@ -13,14 +13,14 @@ public class VoiceChannel
         public ulong GuildId { get; set; }
         public ulong ChannelId { get; set; }
     }
-    
+
     // ReSharper disable once CollectionNeverQueried.Local
-    private readonly Dictionary<ChannelInfo,IAudioClient> _audioClients = new();
+    private readonly Dictionary<ChannelInfo, IAudioClient> _audioClients = new();
 
     public async Task JoinChannel(SocketSlashCommand command)
     {
         var channel = (command.User as IGuildUser)?.VoiceChannel;
-        if(channel == null)
+        if (channel == null)
         {
             await command.RespondAsync("You must be in a voice channel to use this command.");
             return;
@@ -29,7 +29,7 @@ public class VoiceChannel
 #pragma warning disable CS4014 // この呼び出しは待機されなかったため、現在のメソッドの実行は呼び出しの完了を待たずに続行されます
         command.RespondAsync("接続！");
 #pragma warning restore CS4014 // この呼び出しは待機されなかったため、現在のメソッドの実行は呼び出しの完了を待たずに続行されます
-        _audioClients.Add(new ChannelInfo{GuildId = channel.GuildId, ChannelId = channel.Id}, audioClient);
+        _audioClients.Add(new ChannelInfo { GuildId = channel.GuildId, ChannelId = channel.Id }, audioClient);
         await Task.Delay(TimeSpan.FromSeconds(10));
         Console.WriteLine("再生開始");
 #pragma warning disable CS4014 // この呼び出しは待機されなかったため、現在のメソッドの実行は呼び出しの完了を待たずに続行されます
@@ -54,9 +54,9 @@ public class VoiceChannel
             Console.WriteLine(e);
             throw;
         }
-        
+
     }
-    
+
     private async Task SendAsync(IAudioClient client, string path)
     {
         using (var ffmpeg = CreateStream(path))

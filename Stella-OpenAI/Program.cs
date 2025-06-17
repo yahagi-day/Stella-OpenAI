@@ -13,8 +13,8 @@ public class Program
 #pragma warning disable CS8618
     private static IServiceProvider _serviceProvider;
 #pragma warning restore CS8618
-    
-    private DiscordSocketClient _client = new ();
+
+    private DiscordSocketClient _client = new();
     private string? _tokenDiscord;
     private InteractionService? _interactionService;
     private static ChannelStateManager _channelStateManager = new();
@@ -76,7 +76,7 @@ public class Program
     {
         // チャンネル状態を復元
         await _channelStateManager.LoadStateAsync();
-        
+
         // 保存されたチャンネルにChatGptClassを復元
         var enabledChannels = _channelStateManager.GetEnabledChannels();
         foreach (var channelId in enabledChannels)
@@ -86,7 +86,7 @@ public class Program
                 DiscordEventHandler.GptClasses.TryAdd(channelId, new ChatGptClass());
             }
         }
-        
+
         Console.WriteLine($"復元されたチャンネル数: {enabledChannels.Length}");
 
         _interactionService = new InteractionService(_client);

@@ -44,17 +44,17 @@ public class SimpleTests
         try
         {
             var chatGpt = new ChatGptClass();
-            
+
             // Act - Add
             DiscordEventHandler.GptClasses[testChannelId] = chatGpt;
-            
+
             // Assert - Add
             Assert.True(DiscordEventHandler.GptClasses.ContainsKey(testChannelId));
             Assert.Equal(originalCount + 1, DiscordEventHandler.GptClasses.Count);
-            
+
             // Act - Remove
             var removed = DiscordEventHandler.GptClasses.Remove(testChannelId);
-            
+
             // Assert - Remove
             Assert.True(removed);
             Assert.False(DiscordEventHandler.GptClasses.ContainsKey(testChannelId));
@@ -84,10 +84,10 @@ public class SimpleTests
         try
         {
             var chatGpt = new ChatGptClass();
-            
+
             // Act
             DiscordEventHandler.GptClasses[channelId] = chatGpt;
-            
+
             // Assert
             Assert.True(DiscordEventHandler.GptClasses.ContainsKey(channelId));
             Assert.Same(chatGpt, DiscordEventHandler.GptClasses[channelId]);

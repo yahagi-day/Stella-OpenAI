@@ -10,7 +10,7 @@ public class SlashCommandModule : InteractionModuleBase<SocketInteractionContext
 
     [SlashCommand("version", "Stella-Chanのバージョンを表示します")]
     public async Task VersionRespond()
-        => await RespondAsync(Version); 
+        => await RespondAsync(Version);
 
     [SlashCommand("sudo", "大いなる力には責任が伴うよ！")]
     public async Task SuperUser()
@@ -31,7 +31,7 @@ public class SlashCommandModule : InteractionModuleBase<SocketInteractionContext
             };
             task();
         }
-        catch(Exception e)
+        catch (Exception e)
         {
             Console.WriteLine(e);
         }

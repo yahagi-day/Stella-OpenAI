@@ -15,7 +15,7 @@ public class ChatGptClassTests
     {
         // Act
         var chatGpt = new ChatGptClass();
-        
+
         // Assert - Constructor should not throw exception
         Assert.NotNull(chatGpt);
     }
@@ -31,13 +31,13 @@ public class ChatGptClassTests
         // Act & Assert
         // Note: This test requires actual API call, so it's more of an integration test
         // In a real scenario, we would mock the ChatClient
-        var exception = await Record.ExceptionAsync(async () => 
+        var exception = await Record.ExceptionAsync(async () =>
         {
             var result = await chatGpt.SendChatGptPromptAsync(messages, cancellationToken);
             Assert.NotNull(result);
             Assert.NotEmpty(result);
         });
-        
+
         // Should not throw exception if API key is valid
         // Will throw if API key is not configured
     }
@@ -52,13 +52,13 @@ public class ChatGptClassTests
 
         // Act & Assert
         // Note: This test requires actual API call
-        var exception = await Record.ExceptionAsync(async () => 
+        var exception = await Record.ExceptionAsync(async () =>
         {
             var result = await chatGpt.CreateImageDataAsync(prompt, cancellationToken);
             Assert.NotNull(result);
             Assert.True(result.Length > 0);
         });
-        
+
         // Should not throw exception if API key is valid
     }
 
@@ -71,7 +71,7 @@ public class ChatGptClassTests
         var cancellationToken = CancellationToken.None;
 
         // Act & Assert
-        await Assert.ThrowsAnyAsync<Exception>(async () => 
+        await Assert.ThrowsAnyAsync<Exception>(async () =>
         {
             await chatGpt.SendChatGptPromptAsync(messages, cancellationToken);
         });
@@ -86,7 +86,7 @@ public class ChatGptClassTests
         var cancellationToken = CancellationToken.None;
 
         // Act & Assert
-        await Assert.ThrowsAnyAsync<Exception>(async () => 
+        await Assert.ThrowsAnyAsync<Exception>(async () =>
         {
             await chatGpt.CreateImageDataAsync(prompt, cancellationToken);
         });
