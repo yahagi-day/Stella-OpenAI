@@ -2,9 +2,16 @@ name: Deploy to DegitalOcean
 
 on:
   workflow_dispatch: {}
+
+permissions:
+  contents: read
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
     
     steps:
     - name: Checkout repository

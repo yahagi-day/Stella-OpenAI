@@ -5,9 +5,16 @@ on:
     branches: [ "main" ]
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      actions: read
     
     env:
       TOKEN_OPENAI: ${{ secrets.TOKEN_OPENAI }}
@@ -39,6 +46,9 @@ jobs:
         
   code-quality:
     runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
     
     steps:
     - name: Checkout repository
