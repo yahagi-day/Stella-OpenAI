@@ -13,19 +13,23 @@ public class Program
 #pragma warning disable CS8618
     private static IServiceProvider _serviceProvider;
 #pragma warning restore CS8618
-    
-    private DiscordSocketClient _client = new ();
+
+    private DiscordSocketClient _client = new();
     private string? _tokenDiscord;
     private InteractionService? _interactionService;
+    private static ChannelStateManager _channelStateManager = new();
 
     private static IServiceProvider CreateProvider()
     {
         var config = new DiscordSocketConfig { GatewayIntents = GatewayIntents.All };
         var collection = new ServiceCollection()
             .AddSingleton(config)
-            .AddSingleton<DiscordSocketClient>();
+            .AddSingleton<DiscordSocketClient>()
+            .AddSingleton(_channelStateManager);
         return collection.BuildServiceProvider();
     }
+
+    public static ChannelStateManager GetChannelStateManager() => _channelStateManager;
     public static Task Main(string[] _)
     {
         _serviceProvider = CreateProvider();
@@ -70,6 +74,21 @@ public class Program
 
     private async Task Client_Ready()
     {
+        // チャンネル状態を復元
+        await _channelStateManager.LoadStateAsync();
+
+        // 保存されたチャンネルにChatGptClassを復元
+        var enabledChannels = _channelStateManager.GetEnabledChannels();
+        foreach (var channelId in enabledChannels)
+        {
+            if (!DiscordEventHandler.GptClasses.ContainsKey(channelId))
+            {
+                DiscordEventHandler.GptClasses.TryAdd(channelId, new ChatGptClass());
+            }
+        }
+
+        Console.WriteLine($"復元されたチャンネル数: {enabledChannels.Length}");
+
         _interactionService = new InteractionService(_client);
         //InteractionModuleBaseを参照しているクラスを取得して登録している
         await _interactionService.AddModulesAsync(Assembly.GetEntryAssembly(), _serviceProvider);

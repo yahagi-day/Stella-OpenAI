@@ -7,7 +7,7 @@ namespace Stella_OpenAI.Discord;
 public static class DiscordEventHandler
 {
     public static readonly Dictionary<ulong, ChatGptClass> GptClasses = new();
-    private static ChatGptClass _gptClass= new();
+    private static ChatGptClass _gptClass = new();
     public static async Task SendMessageFromGptAsync(SocketMessage message, DiscordSocketClient client, CancellationToken token = default)
     {
         string response;

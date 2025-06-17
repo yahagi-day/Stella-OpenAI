@@ -5,6 +5,8 @@ VisualStudioVersion = 17.5.33502.453
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Stella-OpenAI", "Stella-OpenAI\Stella-OpenAI.csproj", "{32468509-85F3-4649-9D68-79C8AFA4B57E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Stella-OpenAI.Tests", "Stella-OpenAI.Tests\Stella-OpenAI.Tests.csproj", "{C5C097E9-5A60-4810-B8C1-C4A7E49C2830}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{32468509-85F3-4649-9D68-79C8AFA4B57E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{32468509-85F3-4649-9D68-79C8AFA4B57E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{32468509-85F3-4649-9D68-79C8AFA4B57E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C5C097E9-5A60-4810-B8C1-C4A7E49C2830}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C5C097E9-5A60-4810-B8C1-C4A7E49C2830}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C5C097E9-5A60-4810-B8C1-C4A7E49C2830}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C5C097E9-5A60-4810-B8C1-C4A7E49C2830}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

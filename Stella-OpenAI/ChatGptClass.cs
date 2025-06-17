@@ -9,7 +9,7 @@ public class ChatGptClass
     private readonly ChatClient _api;
     private readonly ImageClient _imageClient;
     private readonly List<ChatMessage> _messages = new();
-    
+
     private const string DefaultPrompt =
         "ステラちゃんと呼ばれる女性型AIとの会話シミュレーションを行います。" +
         "また、彼女はUnity,Maya,VR,C#などのIT技術とVTuberに関して詳しいようです。またFPSゲームが好きで毎日たくさんプレイしています。" +
@@ -63,7 +63,7 @@ public class ChatGptClass
             var list = completion.Value.Content.ToList();
             return list[0].Text;
         }
-        catch(Exception e)
+        catch (Exception e)
         {
             Console.WriteLine(e);
             throw;
@@ -86,7 +86,7 @@ public class ChatGptClass
             var data = image.Value.ImageBytes;
             return data.ToArray();
         }
-        catch(Exception e)
+        catch (Exception e)
         {
             Console.WriteLine(e);
             throw;
