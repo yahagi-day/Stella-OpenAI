@@ -70,11 +70,12 @@ public class ChatGptClassTests
         var messages = new List<ChatMessage>();
         var cancellationToken = CancellationToken.None;
 
-        // Act & Assert
-        await Assert.ThrowsAnyAsync<Exception>(async () =>
-        {
-            await chatGpt.SendChatGptPromptAsync(messages, cancellationToken);
-        });
+        // Act
+        var result = await chatGpt.SendChatGptPromptAsync(messages, cancellationToken);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.NotEmpty(result);
     }
 
     [Fact]
