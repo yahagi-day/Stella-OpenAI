@@ -9,6 +9,9 @@ jobs:
   test:
     runs-on: ubuntu-latest
     
+    env:
+      TOKEN_OPENAI: ${{ secrets.TOKEN_OPENAI }}
+    
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
