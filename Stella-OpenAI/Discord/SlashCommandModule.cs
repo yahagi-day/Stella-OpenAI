@@ -29,7 +29,7 @@ public class SlashCommandModule : InteractionModuleBase<SocketInteractionContext
                 await Task.Delay(TimeSpan.FromSeconds(600));
                 await (Context.User as IGuildUser)?.RemoveRoleAsync(role)!;
             };
-            task();
+            _ = task();
         }
         catch (Exception e)
         {
