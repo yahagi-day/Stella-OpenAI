@@ -16,7 +16,7 @@ public class SlashCommandModule : InteractionModuleBase<SocketInteractionContext
     public async Task SuperUser()
     {
         //サーバーIDのチェック
-        if (Context.Guild.Id != 839366588486123552) return;
+        if (Context.Guild.Id != 839366588486123552 || Context.Guild.Id != 761498091651858432) return;
         try
         {
             //管理者ロールを付与する
